@@ -217,7 +217,6 @@ let updateSizing = () => {
 }
 
 function copyTextToClipboard(text) {
-    //Create a textbox field where we can insert text to.
     var copyFrom = document.createElement("textarea");
 
     //Set the text content to be the text you wished to copy.

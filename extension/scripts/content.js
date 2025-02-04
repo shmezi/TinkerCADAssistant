@@ -12,7 +12,20 @@
 const PageType = Object.freeze({
     GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher'
 })
+/**
+ * Utility function to copy text to the user's clipboard functionally :)
+ * @param text The text to copy
+ */
 
+let copyTextToClipboard = (text) => {
+    let copyFrom = document.createElement("textarea");
+    copyFrom.textContent = text;
+    document.body.appendChild(copyFrom);
+    copyFrom.select();
+    document.execCommand('copy');
+    copyFrom.blur();
+    document.body.removeChild(copyFrom);
+}
 
 /**
  * Retrieves from storage an item based on id.
@@ -156,25 +169,20 @@ let smallButtonTemplate
 
 function smallButton(text, project, onclick) {
 
-    if (smallButtonTemplate !== undefined) {
-        let b = smallButtonTemplate.clone()
-        b.textContent = text
-        b.onclick = onclick
-        return b
-    }
-
     const ogButton = project.html.querySelector("span").querySelector("a").querySelector("button")
-    const templateButton = document.createElement("button");
+    const smallButton = document.createElement("button");
     for (const c of ogButton.classList) {
-        templateButton.classList.add(c)
+        smallButton.classList.add(c)
     }
-    templateButton.classList.add("extension")
-    templateButton.style.fontSize = "11px"
-    templateButton.style.margin = "10px"
-    templateButton.style.fontFamily = "artifakt-element, sans-serif"
-    templateButton.textContent = text;
-    templateButton.onclick = onclick
-    return templateButton
+    smallButton.textContent = text
+    smallButton.onclick = onclick
+    smallButton.classList.add("extension")
+    smallButton.style.fontSize = "11px"
+    smallButton.style.margin = "10px"
+    smallButton.style.fontFamily = "artifakt-element, sans-serif"
+    smallButton.textContent = text;
+    smallButton.onclick = onclick
+    return smallButton
 }
 
 
@@ -266,7 +274,25 @@ let updateActiveElements = () => {
 let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\/.+$/gm
 let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
 
-let currentURL = ""
+
+let getCurrentURL = () => {
+    return document.querySelector("#url-check").textContent
+}
+
+let setCurrentURL = (url) => {
+    let item = document.querySelector("#url-check")
+    if (!item) {
+        let newItem = document.createElement("p")
+        newItem.style.display = "none"
+        newItem.textContent = url
+        document.appendChild(item)
+        item = newItem
+    } else {
+        item.textContent = url
+    }
+    return item.textContent
+}
+
 /**
  * This is a listener that listens to when the URL is changed!
  * Add actual logic needed here :)
@@ -274,14 +300,14 @@ let currentURL = ""
 let onURLChange = () => {
     setTimeout(() => {
         sendCommand(["url"], (url) => {
-            if (url !== currentURL && url !== null && url.match(tinkerCADURL)) {
+            if (url !== getCurrentURL() && url !== null && url.match(tinkerCADURL)) {
                 console.log(`${url}, ${url.match(activityRegex)}`)
                 if (url.match(activityRegex)) {
                     currentPage = PageType.ACTIVITY
                 } else {
                     currentPage = PageType.GENERAL
                 }
-                currentURL = url
+                setCurrentURL(url)
                 updateActiveElements()
             }
         })
@@ -486,7 +512,7 @@ let sasClassActivitiesOf = (id, onComplete = () => {
 
 }
 
-
+let projectIDRegex = /url\("https:\/\/csg\.tinkercad\.com\/things\/(.+)\/t300-15\.png\?rev=1738623001271000000&s=&v=1"\)/gm
 let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
 }) => {
     get(clazz, (data) => {
@@ -499,10 +525,11 @@ let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
         console.log(`Trying to collect for class ${clazz} with activity ${activity}`)
 
         collect(`https://www.tinkercad.com/classrooms/${clazz}/activities/${activity}`, ".project-students-assets", ".thing-box", (item) => {
-            console.log(`Item ${item}`)
-            return item.querySelector("a").href.replace("/things/", "").replace("-", "")
+            let value = item.querySelector(".turntable-image-container")
+            console.log(`Item ${value}`)
+            return value
         }, (results) => {
-            console.log(`Results: ${results}`)
+            // console.log(`Results: ${results} ${results}  ${results.match(projectIDRegex).groups}  ${results.match(projectIDRegex)}`)
 
             modify(clazz, (data) => {
                 data.activities[activity].projects = results
