@@ -33,6 +33,10 @@ let copyTextToClipboard = (text) => {
  * @param onComplete Action run on completion
  */
 let get = (id, onComplete) => {
+    if (!isActive()) {
+
+        return
+    }
     chrome.storage.local.get(["storage"], (data) => {
         let store
         if (!data.storage) {
@@ -45,6 +49,10 @@ let get = (id, onComplete) => {
     })
 }
 let getKeys = (onComplete) => {
+    if (!isActive()) {
+
+        return
+    }
     chrome.storage.local.get(["storage"], (data) => {
         let store
         if (!data.storage) {
@@ -64,6 +72,10 @@ let getKeys = (onComplete) => {
  * @param onComplete Action run on completion
  */
 let unsafeSet = (id, value, onComplete) => {
+    if (!isActive()) {
+
+        return
+    }
     chrome.storage.local.get(["storage"], (data) => {
         let store
         if (!data.storage) {
@@ -159,7 +171,7 @@ let downloadAllButton = (format, directoryName, items) => {
 
             download({
                 id: project.id.replace(" ", ""),
-                downloadName: project.downloadName.replace(/ /g,'')
+                downloadName: project.downloadName.replace(/ /g, '')
             }, directoryName, format, () => {
                 counter++
                 if (counter >= projects.length) {
@@ -375,14 +387,27 @@ let getFrame = (url) => {
 
     return frame
 }
+/**
+ * Utility to make sure the extension is still not reloaded to prevent the extension once reloaded not throwing exceptions :)
+ * @param message Weather a message should be sent when this happens
+ * @returns Returns if it is active or not.
+ */
+let isActive = (message = false) =>  {
+    if (message) console.log("Extension was reloaded, no exception thrown")
+    return chrome.runtime?.id
 
-
+}
 /**
  * Send a command to the service worker
  * @param command Command to run
  * @param onComplete Response from command.
  */
 let sendCommand = (command, onComplete) => {
+    if (!isActive()) {
+
+        return
+    }
+
     chrome.runtime.sendMessage({value: command.join("(SPLIT)")}, (response) => {
         onComplete(response)
 
@@ -479,7 +504,7 @@ let collectOne = (url, selector, map, onComplete) => {
  * NOTE: Please use this function before any other UAS operations since this builds the foundation for everything.
  * @param onComplete Run once the data has been collected.
  */
-let sasClasses = (onComplete = () => {
+let sasGeneralClasses = (onComplete = () => {
 }) => collect("https://www.tinkercad.com/dashboard/classes", ".classes-list", ".classes-list", (item) => {
     return {
         name: item.querySelector(".class-name").querySelector("p").textContent,
@@ -506,7 +531,7 @@ let sasClasses = (onComplete = () => {
  * @param onComplete Run once complete.
  * @param force
  */
-let sasClassCodeOf = (id, onComplete = () => {
+let sasStudentCodeOfClass = (id, onComplete = () => {
 }, force = false) => {
     get(id, (data) => {
 
@@ -539,7 +564,7 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
 }, force = false) => {
     get(clazzID, (data) => {
 
-        console.log(data)
+
         if (data.activities && !force) {
             onComplete()
             console.log("All activities are up to date!")
@@ -570,7 +595,14 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
 }
 
 let projectIDRegex = /\/things\/(.{11})/gm
-let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
+/**
+ * UAS Based action to store the projects of an activity
+ * @param clazz ID of class
+ * @param activity ID of activity
+ * @param onComplete Run once complete.
+ * @param force Weather this action should be run overriding old data
+ */
+let sasProjectsOfActivity = (clazz, activity, onComplete = () => {
 }, force = false) => {
     get(clazz, (data) => {
         if (data.activities[activity].projects && !force) {
@@ -603,13 +635,20 @@ let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
 
 
 }
-let sasActivityProjectOfClazz = (clazz, onComplete = () => {
+
+/**
+ * UAS Based action to store the projects of all the activities of a class
+ * @param clazz ID of class
+ * @param onComplete Run once complete.
+ * @param force Weather this action should be run overriding old data
+ */
+let sasGetAllProjectsOfActivitiesOfClazz = (clazz, onComplete = () => {
 }, force = false) => {
     get(clazz, (data) => {
         let i = 0
         let items = Object.values(data.activities)
         for (let activity of items) {
-            sasActivityProjectsOf(clazz, activity.id, () => {
+            sasProjectsOfActivity(clazz, activity.id, () => {
                 if (++i >= items.length) onComplete()
             }, force)
         }
@@ -623,7 +662,7 @@ let sasActivityProjectOfClazz = (clazz, onComplete = () => {
  * @param onComplete Run once complete.
  * @param force
  */
-let sasClassStudentsOf = (id, onComplete = () => {
+let sasGetStudentsOfClass = (id, onComplete = () => {
 }, force = false) => {
     get(id, (data) => {
         if (data.students && !force) {
@@ -675,10 +714,10 @@ let sasClassStudentsOf = (id, onComplete = () => {
 let usasAllClassroom = (id, onComplete = () => {
 }) => {
 
-    sasClassCodeOf(id, () => {
+    sasStudentCodeOfClass(id, () => {
         sasClassActivitiesOf(id, () => {
-            sasActivityProjectOfClazz(id, () => {
-                sasClassStudentsOf(id, onComplete)
+            sasGetAllProjectsOfActivitiesOfClazz(id, () => {
+                sasGetStudentsOfClass(id, onComplete)
             })
 
         })
@@ -705,7 +744,7 @@ let getCurrentUser = (onRetrieve) => {
  * UASR Based action to store all data of all classrooms (Good for initial setup :))
  */
 let usasAllData = (onComplete) => {
-    sasClasses(() => {
+    sasGeneralClasses(() => {
 
         getKeys((clazzIds) => {
             let i = 0
@@ -718,8 +757,16 @@ let usasAllData = (onComplete) => {
     })
 
 }
-
+/**
+ * Run general update sequence on storage.
+ * Checking in general items that have never been adding them adding them.
+ * This does not completely rebuild the storage.
+ */
 let updateStorage = () => {
+    if (!isActive()) {
+
+        return
+    }
     chrome.storage.local.get("user", (user) => {
         getCurrentUser((username) => {
             if (user.user !== username) {
@@ -742,29 +789,7 @@ let updateStorage = () => {
 
 
 }
-let galleryStudents = (onComplete) => {
-    let students = []
-    getKeys((clazzes) => {
-        let i = 0
-        for (let clazzID of clazzes) {
-            console.log(`Class: ${clazzID}`)
-            let ib = 0
-            ++i
-            get(clazzID, (clazz) => {
-                for (let student of clazz.students) {
-                    students.push(student)
-                }
-                console.log(`${ib} vs ${clazz.students.length} ${i} vs ${clazzes.length} `)
-                if (++ib >= clazz.students.length && i >= clazzes.length) onComplete(students)
-            })
 
-
-        }
-    })
-}
-galleryStudents((students => {
-    console.log(`Students: ${students}`)
-}))
 
 
 let galleryView = () => {
@@ -784,8 +809,11 @@ let galleryView = () => {
         document.body.appendChild(b)
     }, 3000, PageType.ACTIVITY)
 }
-
-let currentClazzID = (onFound) => {
+/**
+ * finds the id of the class that is currently on screen in
+ * @param onFound Callback called in including id of the class
+ */
+let getCurrentClazzID = (onFound) => {
     getCurrentURL((data) => {
         let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
         let v = clazzRegex.exec(data)
@@ -795,12 +823,16 @@ let currentClazzID = (onFound) => {
 
     })
 }
-let activityClazzID = (onComplete) => {
+/**
+ * finds the id of the activity that is currently on screen in
+ * @param onFound
+ */
+let getCurrentActivityID = (onFound) => {
     let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
 
     getCurrentURL((data) => {
         let d = clazzRegex.exec(data)[4]
-        onComplete(d)
+        onFound(d)
     })
 }
 
@@ -815,27 +847,25 @@ let main = () => {
 
     onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
         let elem = item.querySelector(".btn-group")
-        console.log("loaded!")
-        currentClazzID((clazzID) => {
-            activityClazzID((activityID) => {
-                console.log("! ADDING Buttons!")
+        getCurrentClazzID((clazzID) => {
+            getCurrentActivityID((activityID) => {
                 get(clazzID, (clazz) => {
                     let actvitiyName = clazz.activities[activityID].name
                     let projects = clazz.activities[activityID].projects
                     let newProjects = {}
 
-                    for (let project of Object.values(projects)){
+                    for (let project of Object.values(projects)) {
                         newProjects[project.id] = {
                             id: project.id,
-                            downloadName: clazz.students[project.author].name.replace(/ /g,'')
+                            downloadName: clazz.students[project.author].name.replace(/ /g, '')
                         }
-                        console.log( clazz.students[project.author].name.replace(/ /g,''))
+                        console.log(clazz.students[project.author].name.replace(/ /g, ''))
 
                     }
 
-                    let directoryName = `${clazz.name.replace(/ /g,'')}/${actvitiyName.replace(/ /g,'')}`
+                    let directoryName = `${clazz.name.replace(/ /g, '')}/${actvitiyName.replace(/ /g, '')}`
 
-                  console.log(`Directory: ${directoryName}`)
+                    console.log(`Directory: ${directoryName}`)
 
 
                     elem.appendChild(downloadAllButton("stl", directoryName, newProjects))
@@ -847,6 +877,9 @@ let main = () => {
 
 
     }, 3000, PageType.ACTIVITY)
+    galleryStudents((students => {
+        console.log(`Students: ${students}`)
+    }))
 
     updateStorage()
 }
