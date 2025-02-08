@@ -24,10 +24,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 
 registerCommand({
+    // project.id, project.name, directoryName, format
     command: "download", action: (args, sendResponse) => {
+
+        console.log(args[2])
+
         chrome.downloads.download({
-            url: `https://csg.tinkercad.com/things/${args[2]}/polysoup.${args[4]}?rev=-1`,
-            filename: `${args[1]} - ${args[4]}/${args[3]}.${args[4]}`
+            url: `https://csg.tinkercad.com/things/${args[1]}/polysoup.${args[4]}?rev=-1`,
+            filename: `${args[3]}/${args[2]}.${args[4]}`
         }, function (id) {
             sendResponse(`Downloaded: ${args[1]}`)
         });
@@ -39,7 +43,8 @@ registerCommand({
 registerCommand({
     command: "url", action: (args, sendResponse) => {
         chrome.tabs.query({active: true, lastFocusedWindow: true}).then(r => {
-            sendResponse(r[0].url)
+            if (r[0])
+                sendResponse(r[0].url)
 
         })
 

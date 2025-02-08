@@ -35,10 +35,11 @@ let copyTextToClipboard = (text) => {
 let get = (id, onComplete) => {
     chrome.storage.local.get(["storage"], (data) => {
         let store
-        if (!data.storage)
+        if (!data.storage) {
             store = {}
-        else
+        } else {
             store = data.storage
+        }
         onComplete(store[id])
 
     })
@@ -46,10 +47,11 @@ let get = (id, onComplete) => {
 let getKeys = (onComplete) => {
     chrome.storage.local.get(["storage"], (data) => {
         let store
-        if (!data.storage)
+        if (!data.storage) {
             store = {}
-        else
+        } else {
             store = data.storage
+        }
         onComplete(Object.keys(store))
     })
 }
@@ -64,10 +66,12 @@ let getKeys = (onComplete) => {
 let unsafeSet = (id, value, onComplete) => {
     chrome.storage.local.get(["storage"], (data) => {
         let store
-        if (!data.storage) store = {}
-        else
-            store = data.storage
-        store[id] = value
+        if (!data.storage) {
+            store = {}
+        } else store = data.storage
+        {
+            store[id] = value
+        }
 
         chrome.storage.local.set({storage: store}, (data) => {
             onComplete()
@@ -105,8 +109,7 @@ let recursive = (obj) => {
     unSafeModify(obj.id, obj.map, () => {
         obj.onComplete()
         queue.shift()
-        if (queue.length !== 0)
-            recursive(queue[0])
+        if (queue.length !== 0) recursive(queue[0])
     })
 }
 /**
@@ -118,15 +121,8 @@ let recursive = (obj) => {
 let modify = (id, map, onComplete = () => {
 }) => {
     queue.push({id: id, map: map, onComplete: onComplete})
-    if (queue.length === 1)
-        recursive(queue[0])
+    if (queue.length === 1) recursive(queue[0])
 }
-
-
-/**
- * reWrite this section please :)
- *
- */
 
 
 /**
@@ -147,15 +143,24 @@ let bigButton = (text, onclick) => {
     button.onclick = onclick
     return button
 }
-let downloadAllButton = (format, items) => {
+let exampleDownloadItem = {
+    id: "TinkerCAD ID",
+    downloadName: "name"
+}
+let downloadAllButton = (format, directoryName, items) => {
     return bigButton(`Download ${format}s`, () => {
         let counter = 0
-        for (const project of items) {
-            if (project.name === ogProjectName || project.name === `Copy of ${ogProjectName}`) {
-                counter++
-                continue
-            }
-            download(project.id, format, () => {
+        for (const project of Object.values(items)) {
+            // if (project.name === ogProjectName || project.name === `Copy of ${ogProjectName}`) {
+            //     counter++
+            //     continue
+            //TODO: ADD BACK!
+            // }
+
+            download({
+                id: project.id.replace(" ", ""),
+                downloadName: project.downloadName.replace(/ /g,'')
+            }, directoryName, format, () => {
                 counter++
                 if (counter >= projects.length) {
                     alert("Downloads finished!")
@@ -197,7 +202,10 @@ let currentPage = PageType.GENERAL
 let awaitResult = (condition, onComplete, delay = 3000) => {
 
     setTimeout(() => {
-        if (!condition()) return awaitResult(condition, onComplete, delay)
+        let state = condition()
+        if (!state) {
+            return awaitResult(condition, onComplete, delay)
+        }
 
         return onComplete()
 
@@ -221,9 +229,10 @@ let onElementLoad = (selector, id, onComplete, delay = 300, context = PageType.G
 
     console.log(`Searching for selector ${selector} - ${document.querySelector(selector)}`)
 
-    elementListeners[context][id] = elementListeners[context][id] = () => {
+    elementListeners[context][id] = () => {
         awaitResult(() => {
             // console.log("evaluating")
+
             if (currentPage !== context) return
             // console.log(`going again ${document.querySelector(selector)}`)
             return document.querySelector(selector) !== undefined && document.querySelector(selector) !== null
@@ -257,14 +266,15 @@ let onElementsLoad = (generalSelector, id, action, delay = 300, context = PageTy
  */
 
 let updateActiveElements = () => {
+    console.log(`Moved to context of :${currentPage}, now updating all matching elements!`)
+    for (let contextID of Object.keys(elementListeners)) {
+        if (currentPage !== contextID) continue
 
-    for (let element of Object.keys(elementListeners)) {
-        if (currentPage !== element) continue
-
-        let context = elementListeners[element]
+        let context = elementListeners[contextID]
 
         for (let listener of Object.values(context)) {
             listener()
+            console.log("Listening!")
         }
 
 
@@ -275,33 +285,39 @@ let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\
 let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
 
 
-let getCurrentURL = () => {
-    return document.querySelector("#url-check").textContent
+let getCurrentURL = (onComplete) => {
+
+    awaitResult(() => {
+        let item = document.querySelector("#urlchecker")
+        if (!item) return false
+        if (item.textContent !== undefined && item.textContent !== null) return true
+    }, () => {
+        onComplete(document.querySelector("#urlchecker").textContent)
+    })
+
+
 }
 
 let setCurrentURL = (url) => {
-    let item = document.querySelector("#url-check")
+    let item = document.querySelector("#urlchecker")
     if (!item) {
         let newItem = document.createElement("p")
         newItem.style.display = "none"
         newItem.textContent = url
-        document.appendChild(item)
-        item = newItem
+        newItem.id = "urlchecker"
+
+        document.body.appendChild(newItem)
     } else {
         item.textContent = url
     }
-    return item.textContent
+
 }
 
-/**
- * This is a listener that listens to when the URL is changed!
- * Add actual logic needed here :)
- */
-let onURLChange = () => {
-    setTimeout(() => {
+let urlSetup = false
+let urlSetuper = () => {
+    if (!urlSetup) {
         sendCommand(["url"], (url) => {
-            if (url !== getCurrentURL() && url !== null && url.match(tinkerCADURL)) {
-                console.log(`${url}, ${url.match(activityRegex)}`)
+            if (url.match(tinkerCADURL)) {
                 if (url.match(activityRegex)) {
                     currentPage = PageType.ACTIVITY
                 } else {
@@ -311,6 +327,29 @@ let onURLChange = () => {
                 updateActiveElements()
             }
         })
+        urlSetup = true
+    }
+}
+/**
+ * This is a listener that listens to when the URL is changed!
+ * Add actual logic needed here :)
+ */
+let onURLChange = () => {
+    setTimeout(() => {
+        sendCommand(["url"], (url) => {
+            getCurrentURL((newURL) => {
+                if (url !== newURL && url !== null && url.match(tinkerCADURL)) {
+                    if (url.match(activityRegex)) {
+                        currentPage = PageType.ACTIVITY
+                    } else {
+                        currentPage = PageType.GENERAL
+                    }
+                    setCurrentURL(url)
+                    updateActiveElements()
+                }
+            })
+
+        })
         onURLChange()
     }, 3000)
 }
@@ -319,6 +358,7 @@ onURLChange()
 let frame
 /**
  * Returns the current frame that provides as with new information that we can scrape in the background.
+ * NOTE: Please be warry! if you are scraping a few sites that have the same selectors make sure to blank out the url each run see example in collect.
  * @returns {Element}
  */
 let getFrame = (url) => {
@@ -348,9 +388,15 @@ let sendCommand = (command, onComplete) => {
 
     });
 }
-
-let download = (id, format, onComplete) => {
-    sendCommand(["download", activity, project.id, project.student, format], onComplete)
+/**
+ * Download a project
+ * @param project Download object, see example objects for example.
+ * @param directoryName Name of directory that the items will be downloaded to
+ * @param format Format to download the items as (STL SVG etc)
+ * @param onComplete Callback run once download complete.
+ */
+let download = (project, directoryName, format, onComplete) => {
+    sendCommand(["download", project.id, project.downloadName, directoryName, format], onComplete)
 }
 
 
@@ -366,19 +412,22 @@ let currentCollection = null
  * @param generalSelector Use this selector to grab all the items with it.
  * @param map Run this mapping function to manipulate the data
  * @param onComplete Lambada function called once the collection is complete with the results.
+ * @param reason
  */
-let collect = (url, awaitSelector, generalSelector, map, onComplete) => {
+let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = null) => {
+    if (reason) console.log(`Searching because ${reason} URL: ${url}`)
     if (!currentCollection) {
         currentCollection = url
-        console.log(`awaiting ${url}`)
         awaitResult(() => {
             return getFrame(url).contentDocument.querySelector(awaitSelector) !== null
         }, () => {
+
             let frame = getFrame(url).contentDocument
             let mapped = []
             for (let item of frame.querySelectorAll(generalSelector)) {
                 mapped.push(map(item))
             }
+            getFrame("")
             onComplete(mapped)
             currentCollection = null
         })
@@ -389,7 +438,7 @@ let collect = (url, awaitSelector, generalSelector, map, onComplete) => {
     awaitResult(() => {
         return currentCollection === null
     }, () => {
-        collect(url, awaitSelector, generalSelector, map, onComplete)
+        collect(url, awaitSelector, generalSelector, map, onComplete, reason)
     })
 }
 
@@ -409,7 +458,7 @@ let collectOne = (url, selector, map, onComplete) => {
         }, () => {
 
             let frame = getFrame(url).contentDocument
-
+            getFrame("")
             onComplete(map(frame.querySelector(selector)))
             currentCollection = null
         }, 300)
@@ -444,24 +493,26 @@ let sasClasses = (onComplete = () => {
             data.name = clazz.name
             data.id = clazz.id
         }, () => {
-            if (++i >= clazzes.length)
-                onComplete()
+            if (++i >= clazzes.length) onComplete()
         })
     }
 
 
 })
+
 /**
  * UAS Based action to store the Student Class Code
  * @param id ID of class
  * @param onComplete Run once complete.
+ * @param force
  */
 let sasClassCodeOf = (id, onComplete = () => {
-}) => {
+}, force = false) => {
     get(id, (data) => {
 
-        if (data.code) {
+        if (data.code && !force) {
             onComplete()
+            console.log("All class codes are up to date!")
             return
         }
         collectOne(`https://www.tinkercad.com/classrooms/${id}`, "#teacherTooltipButton", (item) => {
@@ -480,61 +531,72 @@ let sasClassCodeOf = (id, onComplete = () => {
 }
 /**
  * UAS Based action to store the activities of a class
- * @param id ID of class
+ * @param clazzID ID of class
  * @param onComplete Run once complete.
+ * @param force
  */
-let sasClassActivitiesOf = (id, onComplete = () => {
-}) => {
-    get(id, (data) => {
-        if (data.activities) {
+let sasClassActivitiesOf = (clazzID, onComplete = () => {
+}, force = false) => {
+    get(clazzID, (data) => {
+
+        console.log(data)
+        if (data.activities && !force) {
             onComplete()
+            console.log("All activities are up to date!")
             return
         }
 
-        collect(`https://www.tinkercad.com/classrooms/${id}/activities`, ".class-project-card-wrapper", ".class-project-card-wrapper", (item) => {
+        collect(`https://www.tinkercad.com/classrooms/${clazzID}/activities`, ".class-project-card-wrapper", ".class-project-card-wrapper", (item) => {
+
+
             return {
                 id: item.id.replace("ActivityCard", ""), name: item.querySelector("p").textContent
             }
         }, (results) => {
-            console.log(results)
 
-            modify(id, (data) => {
+
+            modify(clazzID, (data) => {
                 if (!data.activities) data.activities = {}
                 for (let result of results) {
                     data.activities[result.id] = result
                 }
             }, onComplete)
-            console.log(`filling in activities for class of ${id}`)
-        })
+            console.log(`filling in activities for class of ${clazzID}`)
+        }, `Data collection ${clazzID}`)
 
     })
 
 
 }
 
-let projectIDRegex = /url\("https:\/\/csg\.tinkercad\.com\/things\/(.+)\/t300-15\.png\?rev=1738623001271000000&s=&v=1"\)/gm
+let projectIDRegex = /\/things\/(.{11})/gm
 let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
-}) => {
+}, force = false) => {
     get(clazz, (data) => {
-        console.log("Start")
-        if (false) {
+        if (data.activities[activity].projects && !force) {
             onComplete()
             console.log("All activities are up to date!")
             return
         }
-        console.log(`Trying to collect for class ${clazz} with activity ${activity}`)
 
         collect(`https://www.tinkercad.com/classrooms/${clazz}/activities/${activity}`, ".project-students-assets", ".thing-box", (item) => {
-            let value = item.querySelector(".turntable-image-container")
-            console.log(`Item ${value}`)
-            return value
+            let author = (/.+(\w{11}).+/gm).exec(item.querySelector(".author-information").querySelector("a").href)[1]
+            let value = item.querySelector("a").href.match(projectIDRegex)[0].replace("/things/", "")
+            return {
+                id: value,
+                author: author
+            }
+
         }, (results) => {
             // console.log(`Results: ${results} ${results}  ${results.match(projectIDRegex).groups}  ${results.match(projectIDRegex)}`)
 
             modify(clazz, (data) => {
-                data.activities[activity].projects = results
+                data.activities[activity].projects = {}
+                for (let project of results) {
+                    data.activities[activity].projects[project.id] = project
+                }
             }, onComplete)
-            console.log(`filling in all of the activities for activity of ${activity}`)
+            console.log(`filling in all of the projects in the activity of ${activity}`)
         })
 
     })
@@ -542,16 +604,14 @@ let sasActivityProjectsOf = (clazz, activity, onComplete = () => {
 
 }
 let sasActivityProjectOfClazz = (clazz, onComplete = () => {
-}) => {
+}, force = false) => {
     get(clazz, (data) => {
         let i = 0
         let items = Object.values(data.activities)
         for (let activity of items) {
-            console.log(`ID: ${activity.id}`)
             sasActivityProjectsOf(clazz, activity.id, () => {
-                if (++i >= items.length)
-                    onComplete()
-            })
+                if (++i >= items.length) onComplete()
+            }, force)
         }
     })
 }
@@ -561,12 +621,14 @@ let sasActivityProjectOfClazz = (clazz, onComplete = () => {
  * UAS Based action to store the students of a class
  * @param id ID of class
  * @param onComplete Run once complete.
+ * @param force
  */
 let sasClassStudentsOf = (id, onComplete = () => {
-}) => {
+}, force = false) => {
     get(id, (data) => {
-        if (data.students) {
+        if (data.students && !force) {
             onComplete()
+            console.log("All students are up to date!")
             return
         }
         collect(`https://www.tinkercad.com/classrooms/${id}/students`, ".table-content", ".table-content", (item) => {
@@ -593,7 +655,11 @@ let sasClassStudentsOf = (id, onComplete = () => {
         }, (students) => {
 
             modify(id, (data) => {
-                data.students = students
+                if (!data.students) data.students = {}
+                for (let student of students) {
+                    data.students[student.id] = student
+                }
+
             }, onComplete)
             console.log(`Filling in students for class of ${id}`)
 
@@ -645,8 +711,7 @@ let usasAllData = (onComplete) => {
             let i = 0
             for (let key of clazzIds) {
                 usasAllClassroom(key, () => {
-                    if (++i >= clazzIds.length)
-                        onComplete()
+                    if (++i >= clazzIds.length) onComplete()
                 })
             }
         })
@@ -677,21 +742,115 @@ let updateStorage = () => {
 
 
 }
+let galleryStudents = (onComplete) => {
+    let students = []
+    getKeys((clazzes) => {
+        let i = 0
+        for (let clazzID of clazzes) {
+            console.log(`Class: ${clazzID}`)
+            let ib = 0
+            ++i
+            get(clazzID, (clazz) => {
+                for (let student of clazz.students) {
+                    students.push(student)
+                }
+                console.log(`${ib} vs ${clazz.students.length} ${i} vs ${clazzes.length} `)
+                if (++ib >= clazz.students.length && i >= clazzes.length) onComplete(students)
+            })
 
 
-/**
- * Implementation of TinkerCAD assistant actual look and feel from here on :)
- */
-onElementsLoad(".thing-box", "border", (item) => {
-    item.querySelector(".thumbnail").style.border = "2px solid #FFD700"
-}, 3000, PageType.GENERAL)
-
-onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
-    let elem = item.querySelector(".btn-group")
-    elem.appendChild(downloadAllButton("stl"))
-    elem.appendChild(downloadAllButton("svg"))
-}, 3000, PageType.ACTIVITY)
+        }
+    })
+}
+galleryStudents((students => {
+    console.log(`Students: ${students}`)
+}))
 
 
-updateStorage()
+let galleryView = () => {
+    onElementsLoad("#main", "gallery", (item) => {
+        let og = document.querySelector("#main")
+        og.style.display = "none"
+        let elem = document.createElement("h1")
+        elem.textContent = "Hello gallery!"
+        let b = document.createElement("button")
+        b.textContent = "Back"
+        b.onclick = () => {
+            og.style.display = "block"
+            elem.remove()
+        }
+
+        document.body.appendChild(elem)
+        document.body.appendChild(b)
+    }, 3000, PageType.ACTIVITY)
+}
+
+let currentClazzID = (onFound) => {
+    getCurrentURL((data) => {
+        let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
+        let v = clazzRegex.exec(data)
+
+        console.log(`Found data: ${v[2]}`)
+        onFound(v[2])
+
+    })
+}
+let activityClazzID = (onComplete) => {
+    let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
+
+    getCurrentURL((data) => {
+        let d = clazzRegex.exec(data)[4]
+        onComplete(d)
+    })
+}
+
+let main = () => {
+    urlSetuper()
+    /**
+     * Implementation of TinkerCAD assistant actual look and feel from here on :)
+     */
+    onElementsLoad(".thing-box", "border", (item) => {
+        item.querySelector(".thumbnail").style.border = "2px solid #FFD700"
+    }, 3000, PageType.GENERAL)
+
+    onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
+        let elem = item.querySelector(".btn-group")
+        console.log("loaded!")
+        currentClazzID((clazzID) => {
+            activityClazzID((activityID) => {
+                console.log("! ADDING Buttons!")
+                get(clazzID, (clazz) => {
+                    let actvitiyName = clazz.activities[activityID].name
+                    let projects = clazz.activities[activityID].projects
+                    let newProjects = {}
+
+                    for (let project of Object.values(projects)){
+                        newProjects[project.id] = {
+                            id: project.id,
+                            downloadName: clazz.students[project.author].name.replace(/ /g,'')
+                        }
+                        console.log( clazz.students[project.author].name.replace(/ /g,''))
+
+                    }
+
+                    let directoryName = `${clazz.name.replace(/ /g,'')}/${actvitiyName.replace(/ /g,'')}`
+
+                  console.log(`Directory: ${directoryName}`)
+
+
+                    elem.appendChild(downloadAllButton("stl", directoryName, newProjects))
+                    elem.appendChild(downloadAllButton("svg", directoryName, newProjects))
+                })
+
+            })
+        })
+
+
+    }, 3000, PageType.ACTIVITY)
+
+    updateStorage()
+}
+main()
+
+
 
