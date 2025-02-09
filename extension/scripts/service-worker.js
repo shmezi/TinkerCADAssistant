@@ -59,3 +59,8 @@ registerCommand({
         })
     }
 })
+
+// Check whether new version is installed
+chrome.runtime.onInstalled.addListener(function (details) {
+    chrome.tabs.create({url: chrome.runtime.getURL('intro.html')});
+})

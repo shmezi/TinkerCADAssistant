@@ -10,8 +10,10 @@
 
 
 const PageType = Object.freeze({
-    GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher'
+    GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher',
 })
+
+
 /**
  * Utility function to copy text to the user's clipboard functionally :)
  * @param text The text to copy
@@ -48,6 +50,10 @@ let get = (id, onComplete) => {
 
     })
 }
+/**
+ * Retrieve all class IDS
+ * @param onComplete Callback including all of the keys
+ */
 let getKeys = (onComplete) => {
     if (!isActive()) {
 
@@ -149,16 +155,15 @@ let bigButton = (text, onclick) => {
     button.onclick = onclick
     button.classList.add("btn", "activities", "btn-white")
     button.style.height = "40px"
-    button.style.marginLeft = "10px"
+    button.style.overflow = "hidden"
+    button.style.textOverflow = "ellipsis"
+    button.style.whiteSpace = "nowrap"
     button.style.fontFamily = "Open Sans, Helvetica, Arial, sans-serif"
     button.textContent = text
     button.onclick = onclick
     return button
 }
-let exampleDownloadItem = {
-    id: "TinkerCAD ID",
-    downloadName: "name"
-}
+
 let downloadAllButton = (format, directoryName, items) => {
     return bigButton(`Download ${format}s`, () => {
         let counter = 0
@@ -182,24 +187,29 @@ let downloadAllButton = (format, directoryName, items) => {
     })
 }
 
-let smallButtonTemplate
 
-function smallButton(text, project, onclick) {
+/**
+ * Small button used by TinkerCAD
+ * @param text Text that should be inside the big button
+ * @param onclick Function called on click of the button
+ * @returns {HTMLButtonElement} Returns a big button used in TinkerCAD
+ */
+let smallButton = (text, onclick) => {
+    const button = document.createElement("button");
+    button.textContent = text
+    button.onclick = onclick
+    button.classList.add("btn", "btn-primary", "tinkerButton")
+    button.style.padding = "10px"
 
-    const ogButton = project.html.querySelector("span").querySelector("a").querySelector("button")
-    const smallButton = document.createElement("button");
-    for (const c of ogButton.classList) {
-        smallButton.classList.add(c)
-    }
-    smallButton.textContent = text
-    smallButton.onclick = onclick
-    smallButton.classList.add("extension")
-    smallButton.style.fontSize = "11px"
-    smallButton.style.margin = "10px"
-    smallButton.style.fontFamily = "artifakt-element, sans-serif"
-    smallButton.textContent = text;
-    smallButton.onclick = onclick
-    return smallButton
+    button.style.fontFamily = "Open Sans, Helvetica, Arial, sans-serif"
+    button.textContent = text
+    button.onclick = onclick
+    return button
+}
+
+let exampleDownloadItem = {
+    id: "TinkerCAD ID",
+    downloadName: "name"
 }
 
 
@@ -240,6 +250,7 @@ let onElementLoad = (selector, id, onComplete, delay = 300, context = PageType.G
     if (!elementListeners[context]) elementListeners[context] = {}
 
     console.log(`Searching for selector ${selector} - ${document.querySelector(selector)}`)
+    console.log(`Current context: ${currentPage}, context for item set to ${context}`)
 
     elementListeners[context][id] = () => {
         awaitResult(() => {
@@ -297,7 +308,7 @@ let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\
 let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
 
 
-let getCurrentURL = (onComplete) => {
+let getCurrentURL = (onComplete, delay = 100) => {
 
     awaitResult(() => {
         let item = document.querySelector("#urlchecker")
@@ -305,7 +316,7 @@ let getCurrentURL = (onComplete) => {
         if (item.textContent !== undefined && item.textContent !== null) return true
     }, () => {
         onComplete(document.querySelector("#urlchecker").textContent)
-    })
+    }, delay)
 
 
 }
@@ -326,12 +337,26 @@ let setCurrentURL = (url) => {
 }
 
 let urlSetup = false
+
 let urlSetuper = () => {
     if (!urlSetup) {
         sendCommand(["url"], (url) => {
             if (url.match(tinkerCADURL)) {
                 if (url.match(activityRegex)) {
                     currentPage = PageType.ACTIVITY
+
+                    getCurrentActivityAndClassID((clazzID, activityID) => {
+                        sasClassActivitiesOf(clazzID, () => {
+                            sasGetProjectsOfActivity(clazzID, activityID, () => {
+                                sasGetStudentsOfClass(clazzID, () => {
+                                    console.log("Updated current activities and students")
+                                }, true)
+                            }, true)
+
+                        }, true)
+                    })
+
+
                 } else {
                     currentPage = PageType.GENERAL
                 }
@@ -350,14 +375,16 @@ let onURLChange = () => {
     setTimeout(() => {
         sendCommand(["url"], (url) => {
             getCurrentURL((newURL) => {
-                if (url !== newURL && url !== null && url.match(tinkerCADURL)) {
-                    if (url.match(activityRegex)) {
-                        currentPage = PageType.ACTIVITY
-                    } else {
-                        currentPage = PageType.GENERAL
+                if (url !== newURL && url !== null) {
+                    if (url.match(tinkerCADURL)) {
+                        if (url.match(activityRegex)) {
+                            currentPage = PageType.ACTIVITY
+                        } else {
+                            currentPage = PageType.GENERAL
+                        }
+                        setCurrentURL(url)
+                        updateActiveElements()
                     }
-                    setCurrentURL(url)
-                    updateActiveElements()
                 }
             })
 
@@ -392,7 +419,7 @@ let getFrame = (url) => {
  * @param message Weather a message should be sent when this happens
  * @returns Returns if it is active or not.
  */
-let isActive = (message = false) =>  {
+let isActive = (message = false) => {
     if (message) console.log("Extension was reloaded, no exception thrown")
     return chrome.runtime?.id
 
@@ -579,11 +606,11 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
             }
         }, (results) => {
 
-
             modify(clazzID, (data) => {
                 if (!data.activities) data.activities = {}
                 for (let result of results) {
-                    data.activities[result.id] = result
+                    if (!data.activities[result.id])
+                        data.activities[result.id] = result
                 }
             }, onComplete)
             console.log(`filling in activities for class of ${clazzID}`)
@@ -602,7 +629,7 @@ let projectIDRegex = /\/things\/(.{11})/gm
  * @param onComplete Run once complete.
  * @param force Weather this action should be run overriding old data
  */
-let sasProjectsOfActivity = (clazz, activity, onComplete = () => {
+let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
 }, force = false) => {
     get(clazz, (data) => {
         if (data.activities[activity].projects && !force) {
@@ -648,7 +675,7 @@ let sasGetAllProjectsOfActivitiesOfClazz = (clazz, onComplete = () => {
         let i = 0
         let items = Object.values(data.activities)
         for (let activity of items) {
-            sasProjectsOfActivity(clazz, activity.id, () => {
+            sasGetProjectsOfActivity(clazz, activity.id, () => {
                 if (++i >= items.length) onComplete()
             }, force)
         }
@@ -719,7 +746,6 @@ let usasAllClassroom = (id, onComplete = () => {
             sasGetAllProjectsOfActivitiesOfClazz(id, () => {
                 sasGetStudentsOfClass(id, onComplete)
             })
-
         })
     })
 
@@ -789,26 +815,157 @@ let updateStorage = () => {
 
 
 }
+let views = {}
 
+let enableView = (id, enable, disable) => {
+    let og = document.querySelector("#main")
+    og.style.display = "none"
+    views[id] = {id: id, enable: enable, disable: disable}
+    let container = document.createElement("div")
+    container.classList.add("view")
+    document.body.appendChild(container)
+    enable(container)
 
-
-let galleryView = () => {
-    onElementsLoad("#main", "gallery", (item) => {
-        let og = document.querySelector("#main")
-        og.style.display = "none"
-        let elem = document.createElement("h1")
-        elem.textContent = "Hello gallery!"
-        let b = document.createElement("button")
-        b.textContent = "Back"
-        b.onclick = () => {
-            og.style.display = "block"
-            elem.remove()
-        }
-
-        document.body.appendChild(elem)
-        document.body.appendChild(b)
-    }, 3000, PageType.ACTIVITY)
 }
+
+let disableView = (id) => {
+    let og = document.querySelector("#main")
+    og.style.display = "block"
+
+    for (let item of document.querySelectorAll(".view")) {
+        console.log("Removed")
+        item.remove()
+    }
+    views[id].disable()
+}
+
+let galleryView = () => enableView("gallery",
+    (container) => {
+        container.appendChild("Gallery")
+
+    }, () => {
+
+    })
+
+
+let teacherViewEnable = () => enableView("teacher", (container) => {
+    currentPage = PageType.TEACHER
+
+    let header = document.createElement("div")
+    let row = document.createElement("div")
+
+
+    let frame = document.createElement("iframe")
+    let studentList = document.createElement("ul")
+
+
+    let previous
+    let setFrame = (id, elem) => {
+        frame.src = `https://www.tinkercad.com/things/${id}/edit`
+        if (previous) {
+            previous.style.border = "none"
+        }
+        elem.style.border = "2px solid #FFD700"
+        previous = elem
+
+    }
+
+    frame.style.border = "none"
+    frame.style.width = "87vw"
+    frame.style.height = "92vh"
+    header.style.height = "8vh"
+    // studentList.style.alignItems = "center"
+    studentList.style.width = "13vw"
+    studentList.style.listStyleType = "none"
+    studentList.style.padding = "0"
+    studentList.style.display = "inline"
+    studentList.style.overflow = "hidden"
+    studentList.style.overflowY = "scroll"
+    studentList.style.height = "90vh"
+    row.style.display = "flex"
+
+    container.appendChild(header)
+    row.appendChild(frame)
+    row.appendChild(studentList)
+    container.appendChild(row)
+
+    getCurrentActivityAndClassID((clazzID, activityID) => {
+        get(clazzID, (clazz) => {
+            header.classList.add("btn-group")
+            header.style.display = "flex"
+            header.style.padding = "1%"
+            header.appendChild(bigButton("Back", () => disableView("teacher")))
+            header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code)))
+            console.log(Object.values(clazz.activities[activityID].projects))
+            let first = true
+            for (let project of Object.values(clazz.activities[activityID].projects)) {
+                console.log(`B: ${Object.values(project)}`)
+                let b = smallButton(clazz.students[project.author].name, () => {
+                    setFrame(project.id, b)
+                })
+                if (first) {
+                    setFrame(project.id, b)
+                    first = false
+                }
+                b.id = project.id
+                b.classList.add("selection")
+                b.style.width = "13vw"
+                studentList.appendChild(b)
+                console.log(project)
+            }
+            let update = (onComplete) => {
+                getCurrentActivity((activity) => {
+
+                    let projectIDS = []
+                    for (let project of Object.values(activity.projects)) {
+                        projectIDS.push(project.id)
+                    }
+                    sasGetProjectsOfActivity(clazzID, activityID, () => {
+                        let currentElems = document.querySelectorAll(".selection")
+                        let added = []
+                        for (let item of currentElems) {
+                            if (!projectIDS.includes(item.id)) item.remove()
+                            added.push(item.id)
+                        }
+
+                        for (let project of Object.values(activity.projects)) {
+                            if (!added.includes(project.id)) {
+                                let b = smallButton(clazz.students[project.author].name, () => {
+                                    setFrame(project.id, b)
+                                })
+
+                                b.id = project.id
+                                b.classList.add("selection")
+                                b.style.width = "13vw"
+                                studentList.appendChild(b)
+                            }
+                        }
+                        onComplete()
+
+                    }, true)
+
+                    console.log("Update run!")
+                }, true)
+            }
+            let loop = () => {
+                setTimeout(() => {
+                    update(() => {
+                        loop()
+                    })
+
+                }, 5000)
+            }
+            loop()
+
+
+        })
+    })
+
+
+}, () => {
+})
+
+
 /**
  * finds the id of the class that is currently on screen in
  * @param onFound Callback called in including id of the class
@@ -821,23 +978,40 @@ let getCurrentClazzID = (onFound) => {
         console.log(`Found data: ${v[2]}`)
         onFound(v[2])
 
-    })
+    }, 100)
 }
+
 /**
  * finds the id of the activity that is currently on screen in
  * @param onFound
  */
-let getCurrentActivityID = (onFound) => {
+let getCurrentActivityAndClassID = (onFound) => {
     let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
 
     getCurrentURL((data) => {
-        let d = clazzRegex.exec(data)[4]
-        onFound(d)
+        let d = clazzRegex.exec(data)
+        onFound(d[2], d[4])
+    }, 100)
+}
+let getCurrentClazz = (onFound) => {
+    getCurrentClazzID((clazzId) => {
+        get(clazzId, (clazz) => {
+            onFound(clazz)
+        })
+    })
+}
+let getCurrentActivity = (onFound) => {
+    getCurrentActivityAndClassID((clazzID, activityID) => {
+        get(clazzID, (clazz) => {
+            onFound(clazz.activities[activityID])
+        })
     })
 }
 
+
 let main = () => {
     urlSetuper()
+
     /**
      * Implementation of TinkerCAD assistant actual look and feel from here on :)
      */
@@ -847,39 +1021,38 @@ let main = () => {
 
     onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
         let elem = item.querySelector(".btn-group")
-        getCurrentClazzID((clazzID) => {
-            getCurrentActivityID((activityID) => {
-                get(clazzID, (clazz) => {
-                    let actvitiyName = clazz.activities[activityID].name
-                    let projects = clazz.activities[activityID].projects
-                    let newProjects = {}
+        elem.appendChild(bigButton("Teacher view", () => {
+            teacherViewEnable()
+        }))
+        getCurrentActivityAndClassID((clazzID, activityID) => {
+            get(clazzID, (clazz) => {
+                let actvitiyName = clazz.activities[activityID].name
+                let projects = clazz.activities[activityID].projects
+                let newProjects = {}
 
-                    for (let project of Object.values(projects)) {
-                        newProjects[project.id] = {
-                            id: project.id,
-                            downloadName: clazz.students[project.author].name.replace(/ /g, '')
-                        }
-                        console.log(clazz.students[project.author].name.replace(/ /g, ''))
-
+                for (let project of Object.values(projects)) {
+                    newProjects[project.id] = {
+                        id: project.id,
+                        downloadName: clazz.students[project.author].name.replace(/ /g, '')
                     }
+                    console.log(clazz.students[project.author].name.replace(/ /g, ''))
 
-                    let directoryName = `${clazz.name.replace(/ /g, '')}/${actvitiyName.replace(/ /g, '')}`
+                }
 
-                    console.log(`Directory: ${directoryName}`)
+                let directoryName = `${clazz.name.replace(/ /g, '')}/${actvitiyName.replace(/ /g, '')}`
+
+                console.log(`Directory: ${directoryName}`)
 
 
-                    elem.appendChild(downloadAllButton("stl", directoryName, newProjects))
-                    elem.appendChild(downloadAllButton("svg", directoryName, newProjects))
-                })
-
+                elem.appendChild(downloadAllButton("stl", directoryName, newProjects))
+                elem.appendChild(downloadAllButton("svg", directoryName, newProjects))
             })
+
         })
 
 
     }, 3000, PageType.ACTIVITY)
-    galleryStudents((students => {
-        console.log(`Students: ${students}`)
-    }))
+
 
     updateStorage()
 }
