@@ -842,7 +842,7 @@ function contains_heb(str) {
     return (/[\u0590-\u05FF]/).test(str);
 }
 
-let galleryViewEnable = () => enableView("gallery",
+let galleryViewEnable = (projects = null) => enableView("gallery",
     (container) => {
         currentPage = PageType.GALLERY
 
@@ -863,9 +863,8 @@ let galleryViewEnable = () => enableView("gallery",
             frame.src = `https://www.tinkercad.com/things/${id}/edit`
             if (contains_heb(name)) {
                 h1.style.textAlign = "right"
-            }
-            else  h1.style.textAlign = "left"
-                h1.innerText = name
+            } else h1.style.textAlign = "left"
+            h1.innerText = name
             awaitResult(() => {
                 return frame.contentDocument.querySelector("#viewcube-home-button")
             }, () => {
@@ -897,10 +896,16 @@ let galleryViewEnable = () => enableView("gallery",
 
             }, 20000)
         }
-        getGalleryProjects((projects) => {
+
+        if (projects) {
             setFrame(projects[0].id, projects[0].name)
             loop(projects)
-        })
+        } else {
+            getGalleryProjects((projects) => {
+                setFrame(projects[0].id, projects[0].name)
+                loop(projects)
+            })
+        }
         container.appendChild(bigButton("Back", () => {
             disableView("gallery")
         }))
@@ -1161,6 +1166,12 @@ let main = () => {
         let elem = item.querySelector(".btn-group")
         elem.appendChild(bigButton("Teacher view", () => {
             teacherViewEnable()
+        }))
+
+        elem.appendChild(bigButton("Gallery", () => {
+            getCurrentActivity((activity)=>{
+                galleryViewEnable(Object.values(activity.projects))
+            })
         }))
         getCurrentActivityAndClassID((clazzID, activityID) => {
             get(clazzID, (clazz) => {
