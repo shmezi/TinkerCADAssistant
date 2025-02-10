@@ -221,7 +221,7 @@ let currentPage = PageType.GENERAL
  * @param delay Delay in MS to wait before checking again.
  * @param context Context that we should wait inside for.
  * */
-let awaitResult = (condition, onComplete, delay = 3000) => {
+let awaitResult = (condition, onComplete, delay = 1000) => {
 
     setTimeout(() => {
         let state = condition()
@@ -727,7 +727,6 @@ let sasGetStudentsOfClass = (id, onComplete = () => {
                 }
 
             }, onComplete)
-            console.log(`Filling in students for class of ${id}`)
 
         })
     })
@@ -894,12 +893,18 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
             header.classList.add("btn-group")
             header.style.display = "flex"
             header.style.padding = "1%"
-            header.appendChild(bigButton("Back", () => disableView("teacher")))
-            header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code)))
-            console.log(Object.values(clazz.activities[activityID].projects))
+            header.appendChild(bigButton("Back", () => {
+                disableView("teacher")
+                currentPage = PageType.ACTIVITY
+            }))
+            header.appendChild(bigButton("Reload", () => {
+                update(() => {
+                })
+            }))
+            header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code.replaceAll("-", ""))))
             let first = true
             for (let project of Object.values(clazz.activities[activityID].projects)) {
-                console.log(`B: ${Object.values(project)}`)
+
                 let b = smallButton(clazz.students[project.author].name, () => {
                     setFrame(project.id, b)
                 })
@@ -911,46 +916,76 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
                 b.classList.add("selection")
                 b.style.width = "13vw"
                 studentList.appendChild(b)
-                console.log(project)
+
             }
             let update = (onComplete) => {
-                getCurrentActivity((activity) => {
+                get(clazzID, (clazz) => {
 
-                    let projectIDS = []
-                    for (let project of Object.values(activity.projects)) {
-                        projectIDS.push(project.id)
-                    }
-                    sasGetProjectsOfActivity(clazzID, activityID, () => {
-                        let currentElems = document.querySelectorAll(".selection")
-                        let added = []
-                        for (let item of currentElems) {
-                            if (!projectIDS.includes(item.id)) item.remove()
-                            added.push(item.id)
+
+                    let getProjects = () => {
+                        let a = clazz.activities[activityID].projects
+                        for (let value of Object.values(a)) {
+                            console.log(`Item: ${value.id}`)
                         }
 
-                        for (let project of Object.values(activity.projects)) {
-                            if (!added.includes(project.id)) {
+                        return a
+                    }
+                    let projectIDS = () => {
+                        let ids = []
+                        for (const project of Object.values(getProjects())) {
+                            ids.push(project.id)
+                        }
+                        return ids
+                    }
+
+
+                    let alreadyActive = []
+                    sasGetStudentsOfClass(clazzID, () => {
+                        sasGetProjectsOfActivity(clazzID, activityID, () => {
+
+                            let ids = projectIDS()
+                            for (const elem of document.querySelectorAll(".selection")) {
+                                if (!ids.includes(elem.id)) {
+                                    elem.remove()
+                                } else {
+                                    alreadyActive.push(elem.id)
+                                }
+                            }
+
+                            for (const project of Object.values(getProjects())) {
+                                console.log(project.id)
+                                if (alreadyActive.includes(project.id)) {
+
+                                    continue
+                                }
+                                console.log(`Adding button for: ${project.id}`)
                                 let b = smallButton(clazz.students[project.author].name, () => {
                                     setFrame(project.id, b)
                                 })
-
                                 b.id = project.id
                                 b.classList.add("selection")
                                 b.style.width = "13vw"
                                 studentList.appendChild(b)
+
                             }
-                        }
-                        onComplete()
+                            onComplete()
+
+
+                        }, true)
 
                     }, true)
+                })
 
-                    console.log("Update run!")
-                }, true)
             }
             let loop = () => {
                 setTimeout(() => {
                     update(() => {
-                        loop()
+
+                        if (currentPage === PageType.TEACHER)
+                            loop()
+                        else {
+                            console.log("Update loop stopped!")
+                        }
                     })
 
                 }, 5000)
@@ -1026,7 +1061,7 @@ let main = () => {
         }))
         getCurrentActivityAndClassID((clazzID, activityID) => {
             get(clazzID, (clazz) => {
-                let actvitiyName = clazz.activities[activityID].name
+                let activityName = clazz.activities[activityID].name
                 let projects = clazz.activities[activityID].projects
                 let newProjects = {}
 
@@ -1039,7 +1074,7 @@ let main = () => {
 
                 }
 
-                let directoryName = `${clazz.name.replace(/ /g, '')}/${actvitiyName.replace(/ /g, '')}`
+                let directoryName = `${clazz.name.replace(/ /g, '')}/${activityName.replace(/ /g, '')}`
 
                 console.log(`Directory: ${directoryName}`)
 
