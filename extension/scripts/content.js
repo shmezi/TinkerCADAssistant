@@ -392,7 +392,7 @@ let onURLChange = () => {
 
         })
         onURLChange()
-    }, 300)
+    }, 100)
 }
 onURLChange()
 
@@ -468,8 +468,9 @@ let currentCollection = null
  * @param map Run this mapping function to manipulate the data
  * @param onComplete Lambada function called once the collection is complete with the results.
  * @param reason
+ * @param secondary Secondary actions that can be run to collect all the needed info
  */
-let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = null) => {
+let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = null, secondary) => {
     if (reason) console.log(`Searching because ${reason} URL: ${url}`)
     if (!currentCollection) {
         currentCollection = url
@@ -482,8 +483,13 @@ let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = nu
             for (let item of frame.querySelectorAll(generalSelector)) {
                 mapped.push(map(item))
             }
+
             getFrame("")
-            onComplete(mapped)
+            if (secondary) {
+                onComplete(mapped, secondary(frame))
+            } else {
+                onComplete(mapped)
+            }
             currentCollection = null
         })
 
@@ -623,6 +629,22 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
 
 
 }
+document.addEventListener('keydown', (event) => {
+    if (event.shiftKey) {
+        console.log("Shift down")
+        for (const elem of document.querySelectorAll('.actions')) {
+            elem.style.display = "initial"
+        }
+    }
+})
+document.addEventListener('keyup', (event) => {
+    if (!event.shiftKey) {
+        console.log("Shift Up")
+        for (const elem of document.querySelectorAll('.actions')) {
+            elem.style.display = "none"
+        }
+    }
+})
 
 let projectIDRegex = /\/things\/(.{11})/gm
 /**
@@ -635,7 +657,7 @@ let projectIDRegex = /\/things\/(.{11})/gm
 let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
 }, force = false) => {
     get(clazz, (data) => {
-        if (data.activities[activity].projects && !force) {
+        if (data.activities[activity].projects && /*data.activities[activity].ogFiles &&*/ !force) {
             onComplete()
             console.log("All activities are up to date!")
             return
@@ -649,19 +671,34 @@ let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
             return {
                 id: value,
                 name: name,
-                author: author
+                author: author,
             }
 
-        }, (results) => {
+        }, (results, secondaryResult) => {
             // console.log(`Results: ${results} ${results}  ${results.match(projectIDRegex).groups}  ${results.match(projectIDRegex)}`)
 
             modify(clazz, (data) => {
                 data.activities[activity].projects = {}
+                data.activities[activity].ogFiles = {}
+                for (let file of secondaryResult) {
+                    data.activities[activity].ogFiles[file.id] = file
+                }
                 for (let project of results) {
                     data.activities[activity].projects[project.id] = project
                 }
             }, onComplete)
             console.log(`filling in all of the projects in the activity of ${activity}`)
+        }, null, (frame) => {
+            let files = []
+            if (!frame.querySelector(".asset-card-wrapper")) return []
+            for (const ogFile of frame.querySelectorAll(".asset-card-wrapper")) {
+                let item = ogFile.querySelector(".asset-card-title")
+                files.push({
+                    id: item.id.replace("TemplateDesignHeaderCard", ""),
+                    name: item.querySelector("p").textContent
+                })
+            }
+            return files
         })
 
     })
@@ -874,7 +911,7 @@ let galleryViewEnable = (projects = null) => enableView("gallery",
             } else h1.style.textAlign = "left"
             h1.innerText = name
             awaitResult(() => {
-                return frame.contentDocument.querySelector("#viewcube-home-button")
+                return frame.contentDocument.querySelector("#viewcube-home-button") && currentPage === PageType.GALLERY
             }, () => {
                 frame.contentDocument.querySelector("#sidebarContainer").remove()
                 frame.contentDocument.querySelector(".editor__tab__subnav").remove()
@@ -1217,6 +1254,56 @@ let main = () => {
 
     }, 500, PageType.CLASSES)
 
+    let easyTools = (context) => {
+        onElementsLoad(".thing-box", "border", (item) => {
+            let container = document.createElement("div")
+            container.style.padding = "3px"
+            container.style.display = "flex"
+            container.style.alignItems = "center"
+            container.style.justifyContent = "center"
+            let id = item.querySelector("a").href?.match(projectIDRegex)[0]?.replace("/things/", "")
+            if (!id) return
+            let name = item.querySelector("h3").textContent
+
+            let button = (text, onClick) => {
+                let b = smallButton(text, onClick)
+                b.style.padding = "4px"
+                b.style.margin = "3px"
+                b.style.fontSize = "14px"
+                b.classList.add("actions")
+                b.style.display = "none"
+                container.appendChild(b)
+            }
+
+            button("Tinker this", () => {
+                sendCommand(["open", `https://www.tinkercad.com/things/${id}/edit`, () => {
+                }])
+            })
+            button("STL", () => {
+                download({
+                    id: id.replace(" ", ""),
+                    downloadName: name.replace(/ /g, '')
+                }, "tinkerAssistant", "stl", () => {
+                })
+
+            })
+            button("SVG", () => {
+                download({
+                    id: id.replace(" ", ""),
+                    downloadName: name.replace(/ /g, '')
+                }, "tinkerAssistant", "stl", () => {
+                })
+
+            })
+            // container.style.border = "2px solid #FFD700"
+
+            item.querySelector(".thumbnail").insertAdjacentElement("beforebegin", container)
+
+        }, 3000, context)
+
+    }
+    easyTools(PageType.GENERAL)
+    easyTools(PageType.ACTIVITY)
 
     onElementLoad(".class-projects-list-toolbar", "gallery", (container) => {
         let elem = bigButton("Gallery", () => {

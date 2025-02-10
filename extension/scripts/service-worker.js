@@ -59,6 +59,11 @@ registerCommand({
         })
     }
 })
+registerCommand({
+    command: "open", action: (args, sendResponse) => {
+        chrome.tabs.create({url: args[1],active:false});
+    }
+})
 
 // Check whether new version is installed
 chrome.runtime.onInstalled.addListener(function (details) {
