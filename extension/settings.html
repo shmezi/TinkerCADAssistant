@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+
+    <style>
+        body {
+            font-family: "Arial", sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #e0e0e0;
+            margin: 0;
+        }
+
+        .settings-container {
+            background: #2c2c2c;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            width: 350px;
+            text-align: center;
+            color: #ffffff;
+        }
+
+        h2 {
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+            color: #bdbdbd;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: none;
+            border-radius: 5px;
+            background: #424242;
+            color: #ffffff;
+        }
+
+        .save-btn {
+            margin-top: 20px;
+            padding: 12px;
+            background: #007BFF;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .save-btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+<div class="settings-container">
+    <h2>⚙️ TinkerCAD Settings</h2>
+
+    <label for="theme">🎨 Theme:</label>
+    <select id="theme">
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+    </select>
+
+    <label for="notifications">🔔 Enable Notifications:</label>
+    <input type="checkbox" id="notifications">
+
+    <label for="volume">🔊 Volume:</label>
+    <input type="range" id="volume" min="0" max="100">
+
+    <button class="save-btn" onclick="chrome.runtime.sendMessage({value: "testing"}, (response) => {});">💾 Save Settings</button>
+</div>
+</body>
+
+</html>

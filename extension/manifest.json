@@ -32,5 +32,9 @@
   "background": {
     "service_worker": "scripts/service-worker.js",
     "type": "module"
+  },
+  "action": {
+    "default_title": "Click to view a popup",
+    "default_popup": "settings.html"
   }
 }

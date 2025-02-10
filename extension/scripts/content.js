@@ -10,7 +10,12 @@
 
 
 const PageType = Object.freeze({
-    GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher', CLASSES: 'classes', GALLERY: 'gallery'
+    GENERAL: 'general',
+    ACTIVITY: 'activity',
+    TEACHER: 'teacher',
+    CLASSES: 'classes',
+    GALLERY: 'gallery',
+    ACTIVITIES: 'activities'
 })
 
 
@@ -200,6 +205,7 @@ let smallButton = (text, onclick) => {
     button.onclick = onclick
     button.classList.add("btn", "btn-primary", "tinkerButton")
     button.style.padding = "10px"
+    button.style.marginTop = "5px"
 
     button.style.fontFamily = "Open Sans, Helvetica, Arial, sans-serif"
     button.textContent = text
@@ -319,7 +325,7 @@ let updateActiveElements = () => {
 let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\/.+$/gm
 let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
 let classesRegex = /^https:\/\/www\.tinkercad\.com\/dashboard\/classes$/gm
-
+let activitiesRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities$/gm
 
 let getCurrentURL = (onComplete, delay = 100) => {
 
@@ -371,6 +377,8 @@ let onURLChange = () => {
                             currentPage = PageType.ACTIVITY
                         } else if (url.match(classesRegex)) {
                             currentPage = PageType.CLASSES
+                        } else if (url.match(activitiesRegex)) {
+                            currentPage = PageType.ACTIVITIES
                         } else {
                             currentPage = PageType.GENERAL
                         }
@@ -976,6 +984,10 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
     frame.style.width = "87vw"
     frame.style.height = "92vh"
     header.style.height = "8vh"
+    header.style.display = "flex"
+    header.style.alignItems = "center"
+    header.style.justifyContent = "center"
+
     // studentList.style.alignItems = "center"
     studentList.style.width = "13vw"
     studentList.style.listStyleType = "none"
@@ -991,6 +1003,7 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
     row.appendChild(studentList)
     container.appendChild(row)
 
+
     getCurrentActivityAndClassID((clazzID, activityID) => {
         get(clazzID, (clazz) => {
             header.classList.add("btn-group")
@@ -1004,6 +1017,44 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
                 update(() => {
                 })
             }))
+            let autoPlaying = false
+
+            let autPlayLoop = () => {
+                setTimeout(() => {
+                    if (autoPlaying && currentPage === PageType.TEACHER) {
+                        let items = document.querySelectorAll(".selection")
+                        let next = false
+                        let i = 0
+                        for (const item of items) {
+                            if (++i >= items.length) {
+                                setFrame(items[0].id, items[0])
+                            }
+                            if (next) {
+                                setFrame(item.id, item)
+                                break
+                            }
+                            if (item === previous) {
+                                next = true
+                            }
+                        }
+                        autPlayLoop()
+                    }
+                }, 30000)
+            }
+            let autoButton = bigButton("Auto", () => {
+                autoPlaying = !autoPlaying
+                if (autoPlaying) {
+                    autoButton.style.backgroundColor = "#4076c7"
+                    autoButton.style.color = "#fff"
+                } else {
+                    autoButton.style.backgroundColor = "#fff"
+                    autoButton.style.color = "#4076c7"
+                }
+
+                autPlayLoop()
+            })
+            header.appendChild(autoButton)
+
             header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code.replaceAll("-", ""))))
             let first = true
             for (let project of Object.values(clazz.activities[activityID].projects)) {
@@ -1044,6 +1095,9 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
 
                     let alreadyActive = []
                     sasGetStudentsOfClass(clazzID, () => {
+                        sasClassActivitiesOf(clazzID, () => {
+
+                        }, true)
                         sasGetProjectsOfActivity(clazzID, activityID, () => {
 
                             let ids = projectIDS()
@@ -1146,7 +1200,9 @@ let getCurrentActivity = (onFound) => {
     })
 }
 
-
+let test = () => {
+    console.log("Test")
+}
 let main = () => {
     onURLChange()
 
@@ -1162,6 +1218,28 @@ let main = () => {
     }, 500, PageType.CLASSES)
 
 
+    onElementLoad(".class-projects-list-toolbar", "gallery", (container) => {
+        let elem = bigButton("Gallery", () => {
+            getCurrentClazz((clazz) => {
+                let projects = []
+                for (const activities of Object.values(clazz.activities)) {
+                    for (const project of Object.values(activities.projects)) {
+                        projects.push(project)
+                    }
+                }
+                galleryViewEnable(projects)
+            })
+
+
+        })
+        let header = document.querySelector(".class-projects-list-toolbar")
+        header.style.display = "flex"
+        elem.style.marginLeft = "5px"
+        header.appendChild(elem)
+
+
+    }, 500, PageType.ACTIVITIES)
+
     onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
         let elem = item.querySelector(".btn-group")
         elem.appendChild(bigButton("Teacher view", () => {
@@ -1169,7 +1247,7 @@ let main = () => {
         }))
 
         elem.appendChild(bigButton("Gallery", () => {
-            getCurrentActivity((activity)=>{
+            getCurrentActivity((activity) => {
                 galleryViewEnable(Object.values(activity.projects))
             })
         }))
