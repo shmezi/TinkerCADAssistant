@@ -10,7 +10,7 @@
 
 
 const PageType = Object.freeze({
-    GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher',
+    GENERAL: 'general', ACTIVITY: 'activity', TEACHER: 'teacher', CLASSES: 'classes', GALLERY: 'gallery'
 })
 
 
@@ -206,6 +206,18 @@ let smallButton = (text, onclick) => {
     button.onclick = onclick
     return button
 }
+let smallButton2 = (text, onclick) => {
+    const button = document.createElement("button");
+    button.textContent = text
+    button.onclick = onclick
+    button.classList.add("button-md")
+    button.style.background = "#1477d1"
+
+    button.textContent = text
+    button.onclick = onclick
+    return button
+}
+
 
 let exampleDownloadItem = {
     id: "TinkerCAD ID",
@@ -306,13 +318,19 @@ let updateActiveElements = () => {
 
 let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\/.+$/gm
 let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
+let classesRegex = /^https:\/\/www\.tinkercad\.com\/dashboard\/classes$/gm
 
 
 let getCurrentURL = (onComplete, delay = 100) => {
 
     awaitResult(() => {
         let item = document.querySelector("#urlchecker")
-        if (!item) return false
+        if (!item) {
+            sendCommand(["url"], (url) => {
+                setCurrentURL(url)
+            })
+            return false
+        }
         if (item.textContent !== undefined && item.textContent !== null) return true
     }, () => {
         onComplete(document.querySelector("#urlchecker").textContent)
@@ -336,63 +354,40 @@ let setCurrentURL = (url) => {
 
 }
 
-let urlSetup = false
 
-let urlSetuper = () => {
-    if (!urlSetup) {
-        sendCommand(["url"], (url) => {
-            if (url.match(tinkerCADURL)) {
-                if (url.match(activityRegex)) {
-                    currentPage = PageType.ACTIVITY
-
-                    getCurrentActivityAndClassID((clazzID, activityID) => {
-                        sasClassActivitiesOf(clazzID, () => {
-                            sasGetProjectsOfActivity(clazzID, activityID, () => {
-                                sasGetStudentsOfClass(clazzID, () => {
-                                    console.log("Updated current activities and students")
-                                }, true)
-                            }, true)
-
-                        }, true)
-                    })
-
-
-                } else {
-                    currentPage = PageType.GENERAL
-                }
-                setCurrentURL(url)
-                updateActiveElements()
-            }
-        })
-        urlSetup = true
-    }
-}
 /**
  * This is a listener that listens to when the URL is changed!
  * Add actual logic needed here :)
  */
+let first = true
 let onURLChange = () => {
     setTimeout(() => {
         sendCommand(["url"], (url) => {
+
             getCurrentURL((newURL) => {
-                if (url !== newURL && url !== null) {
+                if ((url !== newURL && url !== null) || first) {
                     if (url.match(tinkerCADURL)) {
                         if (url.match(activityRegex)) {
                             currentPage = PageType.ACTIVITY
+                        } else if (url.match(classesRegex)) {
+                            currentPage = PageType.CLASSES
                         } else {
                             currentPage = PageType.GENERAL
                         }
                         setCurrentURL(url)
                         updateActiveElements()
+                        first = false
                     }
+
                 }
             })
 
         })
         onURLChange()
-    }, 3000)
+    }, 300)
 }
 onURLChange()
+
 
 let frame
 /**
@@ -641,8 +636,11 @@ let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
         collect(`https://www.tinkercad.com/classrooms/${clazz}/activities/${activity}`, ".project-students-assets", ".thing-box", (item) => {
             let author = (/.+(\w{11}).+/gm).exec(item.querySelector(".author-information").querySelector("a").href)[1]
             let value = item.querySelector("a").href.match(projectIDRegex)[0].replace("/things/", "")
+            let name = item.querySelector("h3").textContent
+
             return {
                 id: value,
+                name: name,
                 author: author
             }
 
@@ -736,17 +734,18 @@ let sasGetStudentsOfClass = (id, onComplete = () => {
  * UASR Based action to store all of a classroom's data.
  * @param id ID of class
  * @param onComplete Run once complete.
+ * @param force
  */
 let usasAllClassroom = (id, onComplete = () => {
-}) => {
+}, force = false) => {
 
     sasStudentCodeOfClass(id, () => {
         sasClassActivitiesOf(id, () => {
             sasGetAllProjectsOfActivitiesOfClazz(id, () => {
-                sasGetStudentsOfClass(id, onComplete)
-            })
-        })
-    })
+                sasGetStudentsOfClass(id, onComplete, force)
+            }, force)
+        }, force)
+    }, force)
 
 
 }
@@ -768,7 +767,8 @@ let getCurrentUser = (onRetrieve) => {
 /**
  * UASR Based action to store all data of all classrooms (Good for initial setup :))
  */
-let usasAllData = (onComplete) => {
+let usasAllData = (onComplete = () => {
+}) => {
     sasGeneralClasses(() => {
 
         getKeys((clazzIds) => {
@@ -838,13 +838,111 @@ let disableView = (id) => {
     views[id].disable()
 }
 
-let galleryView = () => enableView("gallery",
+function contains_heb(str) {
+    return (/[\u0590-\u05FF]/).test(str);
+}
+
+let galleryViewEnable = () => enableView("gallery",
     (container) => {
-        container.appendChild("Gallery")
+        currentPage = PageType.GALLERY
+
+        let frame = document.createElement("iframe")
+        let h1 = document.createElement("h2")
+        h1.style.height = "5vh"
+        h1.style.width = "100vw"
+        h1.style.dir = "auto"
+
+
+        container.appendChild(h1)
+
+        container.appendChild(frame)
+
+
+        let setFrame = (id, name) => {
+            console.log(`Setting frame to ID of ${id}`)
+            frame.src = `https://www.tinkercad.com/things/${id}/edit`
+            if (contains_heb(name)) {
+                h1.style.textAlign = "right"
+            }
+            else  h1.style.textAlign = "left"
+                h1.innerText = name
+            awaitResult(() => {
+                return frame.contentDocument.querySelector("#viewcube-home-button")
+            }, () => {
+                frame.contentDocument.querySelector("#sidebarContainer").remove()
+                frame.contentDocument.querySelector(".editor__tab__subnav").remove()
+                frame.contentDocument.querySelector(".editor__topnav").remove()
+                frame.contentDocument.querySelector(".hud").remove()
+                let canvas = frame.contentDocument.querySelector("canvas")
+                canvas.style.width = "100vw"
+                frame.style.height = "95vh"
+            }, 300)
+        }
+        frame.style.width = "100vw"
+        frame.style.height = "95vh"
+        let i = 1
+
+        let loop = (projects) => {
+            setTimeout(() => {
+                if (currentPage !== PageType.GALLERY)
+                    return
+
+                if (projects.length <= i)
+                    i = 0
+
+                setFrame(projects[i].id, projects[i].name)
+                i++
+
+                loop(projects)
+
+            }, 20000)
+        }
+        getGalleryProjects((projects) => {
+            setFrame(projects[0].id, projects[0].name)
+            loop(projects)
+        })
+        container.appendChild(bigButton("Back", () => {
+            disableView("gallery")
+        }))
+
 
     }, () => {
 
+
     })
+let getGalleryProjects = (onComplete) => {
+    let projects = []
+    let i = 0
+    getKeys((keys => {
+        for (const clazzID of keys) {
+            get(clazzID, (clazz) => {
+                console.log(`Retrieved class of id ${clazzID}`)
+                let students = []
+                for (const student of Object.values(clazz.students)) {
+                    if (student.badgeCount !== "0" && student.badgeCount !== null && student.badgeCount !== undefined) {
+                        students.push(student.id)
+                    }
+                }
+                for (const activity of Object.values(clazz.activities)) {
+                    for (const project of Object.values(activity.projects)) {
+                        if (students.includes(project.author)) {
+                            projects.push(project)
+                            console.log(`Pushing project to items: ${project.id}`)
+                        }
+
+                    }
+                }
+                //Hey there, since this whole thing is async, this needs to be done here :) Not outsideo f hte get(method) since this just has a callback and the rest continues onward :)
+                if (++i >= keys.length) {
+                    onComplete(projects)
+                }
+            })
+
+        }
+
+    }))
+
+}
 
 
 let teacherViewEnable = () => enableView("teacher", (container) => {
@@ -1045,14 +1143,19 @@ let getCurrentActivity = (onFound) => {
 
 
 let main = () => {
-    urlSetuper()
+    onURLChange()
 
     /**
      * Implementation of TinkerCAD assistant actual look and feel from here on :)
      */
-    onElementsLoad(".thing-box", "border", (item) => {
-        item.querySelector(".thumbnail").style.border = "2px solid #FFD700"
-    }, 3000, PageType.GENERAL)
+    onElementLoad(".left-actions", "gallery", (container) => {
+        let elem = smallButton2("Gallery", () => {
+            galleryViewEnable()
+        })
+        container.querySelector("#newClassButton").insertAdjacentElement('afterend', elem)
+
+    }, 500, PageType.CLASSES)
+
 
     onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
         let elem = item.querySelector(".btn-group")
