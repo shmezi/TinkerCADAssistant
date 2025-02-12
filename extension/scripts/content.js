@@ -9,7 +9,7 @@
  */
 
 
-const PageType = Object.freeze({
+const Context = Object.freeze({
     GENERAL: 'general',
     ACTIVITY: 'activity',
     TEACHER: 'teacher',
@@ -35,7 +35,7 @@ let copyTextToClipboard = (text) => {
 }
 
 /**
- * Retrieves from storage an item based on id.
+ * Retrieves a clazz from storage an item based on id.
  * @param id ID of the item that was stored
  * @param onComplete Action run on completion
  */
@@ -55,6 +55,23 @@ let get = (id, onComplete) => {
 
     })
 }
+/**
+ * Update class fully before then retrieving it
+ * @param id
+ * @param onComplete
+ */
+let sasGet = (id, onComplete) => {
+    sasAllDataForClass(id, () => {
+        get(id, onComplete)
+    }, true)
+}
+let sasGetForActivity = (clazz, activity, onComplete) => {
+    sasAllDataForClassActivity(clazz, activity, () => {
+        get(clazz, onComplete)
+    }, true)
+}
+
+
 /**
  * Retrieve all class IDS
  * @param onComplete Callback including all of the keys
@@ -168,6 +185,30 @@ let bigButton = (text, onclick) => {
     button.onclick = onclick
     return button
 }
+let lazyDownloadAllButton = (format, itemFunction) => {
+    return bigButton(`Download ${format}s`, () => {
+        itemFunction((directoryName, projects) => {
+            let counter = 0
+            for (const project of Object.values(projects)) {
+                // if (project.name === ogProjectName || project.name === `Copy of ${ogProjectName}`) {
+                //     counter++
+                //     continue
+                //TODO: ADD BACK Skipping of bad named stuffs
+                // }
+
+                download({
+                    id: project.id.replace(" ", ""), downloadName: project.downloadName.replace(/ /g, '')
+                }, directoryName, format, () => {
+                    counter++
+                    if (counter >= projects.length) {
+                        alert("Downloads finished!")
+                    }
+                })
+            }
+        })
+
+    })
+}
 
 let downloadAllButton = (format, directoryName, items) => {
     return bigButton(`Download ${format}s`, () => {
@@ -176,12 +217,11 @@ let downloadAllButton = (format, directoryName, items) => {
             // if (project.name === ogProjectName || project.name === `Copy of ${ogProjectName}`) {
             //     counter++
             //     continue
-            //TODO: ADD BACK!
+            //TODO: ADD BACK Skipping of bad named stuffs
             // }
 
             download({
-                id: project.id.replace(" ", ""),
-                downloadName: project.downloadName.replace(/ /g, '')
+                id: project.id.replace(" ", ""), downloadName: project.downloadName.replace(/ /g, '')
             }, directoryName, format, () => {
                 counter++
                 if (counter >= projects.length) {
@@ -225,19 +265,12 @@ let smallButton2 = (text, onclick) => {
 }
 
 
-let exampleDownloadItem = {
-    id: "TinkerCAD ID",
-    downloadName: "name"
-}
-
-
-let currentPage = PageType.GENERAL
+let currentPage = Context.GENERAL
 /**
  * Await for a condition to occur to then run another function.
  * @param condition A function that will determine if can complete.
  * @param onComplete The function to run once condition is met.
  * @param delay Delay in MS to wait before checking again.
- * @param context Context that we should wait inside for.
  * */
 let awaitResult = (condition, onComplete, delay = 1000) => {
 
@@ -263,19 +296,15 @@ let elementListeners = {}
  * @param delay Delay to wait between checks.
  * @param context Context that we should wait inside for.
  */
-let onElementLoad = (selector, id, onComplete, delay = 300, context = PageType.GENERAL) => {
+let onElementLoad = (selector, id, onComplete, delay = 300, context = Context.GENERAL) => {
 
     if (!elementListeners[context]) elementListeners[context] = {}
-
-    console.log(`Searching for selector ${selector} - ${document.querySelector(selector)}`)
-    console.log(`Current context: ${currentPage}, context for item set to ${context}`)
-
     elementListeners[context][id] = () => {
         awaitResult(() => {
-            // console.log("evaluating")
+
 
             if (currentPage !== context) return
-            // console.log(`going again ${document.querySelector(selector)}`)
+
             return document.querySelector(selector) !== undefined && document.querySelector(selector) !== null
         }, () => {
             onComplete(document.querySelector(selector))
@@ -293,7 +322,7 @@ let onElementLoad = (selector, id, onComplete, delay = 300, context = PageType.G
  * @param delay Delay in MS of how long to wait between runs
  * @param context Context to run in, see [Page] for reference.
  */
-let onElementsLoad = (generalSelector, id, action, delay = 300, context = PageType.GENERAL) => {
+let onElementsLoad = (generalSelector, id, action, delay = 300, context = Context.GENERAL) => {
     onElementLoad(generalSelector, id, () => {
         for (let item of document.querySelectorAll(generalSelector)) {
             action(item)
@@ -306,7 +335,7 @@ let onElementsLoad = (generalSelector, id, action, delay = 300, context = PageTy
  * Update which listeners should be running. (THIS DOES NOT DEACTIVATE THEM! however, they automatically shut down if they are loaded in the wrong context :))
  */
 
-let updateActiveElements = () => {
+let updateActiveListeners = () => {
     console.log(`Moved to context of :${currentPage}, now updating all matching elements!`)
     for (let contextID of Object.keys(elementListeners)) {
         if (currentPage !== contextID) continue
@@ -315,20 +344,18 @@ let updateActiveElements = () => {
 
         for (let listener of Object.values(context)) {
             listener()
-            console.log("Listening!")
+
         }
 
 
     }
 }
-
-let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\/.+$/gm
-let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
-let classesRegex = /^https:\/\/www\.tinkercad\.com\/dashboard\/classes$/gm
-let activitiesRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities$/gm
-
+/**
+ * Retrieve the current url the page is at
+ * @param onComplete Callback called when url is found
+ * @param delay Delay to wait between checks
+ */
 let getCurrentURL = (onComplete, delay = 100) => {
-
     awaitResult(() => {
         let item = document.querySelector("#urlchecker")
         if (!item) {
@@ -344,7 +371,10 @@ let getCurrentURL = (onComplete, delay = 100) => {
 
 
 }
-
+/**
+ * Set the current url the page is at
+ * @param url The url that the page is at.
+ */
 let setCurrentURL = (url) => {
     let item = document.querySelector("#urlchecker")
     if (!item) {
@@ -359,6 +389,10 @@ let setCurrentURL = (url) => {
     }
 
 }
+let activityRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities\/.+$/gm
+let tinkerCADURL = /^https:\/\/www\.tinkercad\.com.*$/gm
+let classesRegex = /^https:\/\/www\.tinkercad\.com\/dashboard\/classes$/gm
+let activitiesRegex = /^https:\/\/www\.tinkercad\.com\/classrooms\/.+\/activities$/gm
 
 
 /**
@@ -371,19 +405,19 @@ let onURLChange = () => {
         sendCommand(["url"], (url) => {
 
             getCurrentURL((newURL) => {
-                if ((url !== newURL && url !== null) || first) {
+                if ((url !== newURL && url !== null && url !== undefined) || first) {
                     if (url.match(tinkerCADURL)) {
                         if (url.match(activityRegex)) {
-                            currentPage = PageType.ACTIVITY
+                            currentPage = Context.ACTIVITY
                         } else if (url.match(classesRegex)) {
-                            currentPage = PageType.CLASSES
+                            currentPage = Context.CLASSES
                         } else if (url.match(activitiesRegex)) {
-                            currentPage = PageType.ACTIVITIES
+                            currentPage = Context.ACTIVITIES
                         } else {
-                            currentPage = PageType.GENERAL
+                            currentPage = Context.GENERAL
                         }
                         setCurrentURL(url)
-                        updateActiveElements()
+                        updateActiveListeners()
                         first = false
                     }
 
@@ -392,7 +426,7 @@ let onURLChange = () => {
 
         })
         onURLChange()
-    }, 100)
+    }, 1000)
 }
 onURLChange()
 
@@ -467,11 +501,10 @@ let currentCollection = null
  * @param generalSelector Use this selector to grab all the items with it.
  * @param map Run this mapping function to manipulate the data
  * @param onComplete Lambada function called once the collection is complete with the results.
- * @param reason
  * @param secondary Secondary actions that can be run to collect all the needed info
  */
-let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = null, secondary) => {
-    if (reason) console.log(`Searching because ${reason} URL: ${url}`)
+let collect = (url, awaitSelector, generalSelector, map, onComplete, secondary = null) => {
+
     if (!currentCollection) {
         currentCollection = url
         awaitResult(() => {
@@ -499,7 +532,7 @@ let collect = (url, awaitSelector, generalSelector, map, onComplete, reason = nu
     awaitResult(() => {
         return currentCollection === null
     }, () => {
-        collect(url, awaitSelector, generalSelector, map, onComplete, reason)
+        collect(url, awaitSelector, generalSelector, map, onComplete)
     })
 }
 
@@ -553,6 +586,7 @@ let sasGeneralClasses = (onComplete = () => {
         modify(clazz.id, (data) => {
             data.name = clazz.name
             data.id = clazz.id
+
         }, () => {
             if (++i >= clazzes.length) onComplete()
         })
@@ -561,35 +595,7 @@ let sasGeneralClasses = (onComplete = () => {
 
 })
 
-/**
- * UAS Based action to store the Student Class Code
- * @param id ID of class
- * @param onComplete Run once complete.
- * @param force
- */
-let sasStudentCodeOfClass = (id, onComplete = () => {
-}, force = false) => {
-    get(id, (data) => {
 
-        if (data.code && !force) {
-            onComplete()
-            console.log("All class codes are up to date!")
-            return
-        }
-        collectOne(`https://www.tinkercad.com/classrooms/${id}`, "#teacherTooltipButton", (item) => {
-            return item.textContent.replace("Class link: ", "")
-        }, (result) => {
-            modify(id, (data) => {
-                data.code = result
-            }, onComplete)
-            console.log(`filling in classcode for class of ${id}`)
-
-
-        })
-    })
-
-
-}
 /**
  * UAS Based action to store the activities of a class
  * @param clazzID ID of class
@@ -615,15 +621,14 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
             }
         }, (results) => {
 
-            modify(clazzID, (data) => {
-                if (!data.activities) data.activities = {}
+            modify(clazzID, (clazz) => {
+                if (!clazz.activities) clazz.activities = {}
                 for (let result of results) {
-                    if (!data.activities[result.id])
-                        data.activities[result.id] = result
+                    if (!clazz.activities[result.id]) clazz.activities[result.id] = result
                 }
             }, onComplete)
-            console.log(`filling in activities for class of ${clazzID}`)
-        }, `Data collection ${clazzID}`)
+            console.log(`Filling in activities for class of ${clazzID}`)
+        })
 
     })
 
@@ -631,7 +636,6 @@ let sasClassActivitiesOf = (clazzID, onComplete = () => {
 }
 document.addEventListener('keydown', (event) => {
     if (event.shiftKey) {
-        console.log("Shift down")
         for (const elem of document.querySelectorAll('.actions')) {
             elem.style.display = "initial"
         }
@@ -639,7 +643,6 @@ document.addEventListener('keydown', (event) => {
 })
 document.addEventListener('keyup', (event) => {
     if (!event.shiftKey) {
-        console.log("Shift Up")
         for (const elem of document.querySelectorAll('.actions')) {
             elem.style.display = "none"
         }
@@ -669,33 +672,30 @@ let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
             let name = item.querySelector("h3").textContent
 
             return {
-                id: value,
-                name: name,
-                author: author,
+                id: value, name: name, author: author,
             }
 
         }, (results, secondaryResult) => {
-            // console.log(`Results: ${results} ${results}  ${results.match(projectIDRegex).groups}  ${results.match(projectIDRegex)}`)
 
             modify(clazz, (data) => {
                 data.activities[activity].projects = {}
                 data.activities[activity].ogFiles = {}
-                for (let file of secondaryResult) {
-                    data.activities[activity].ogFiles[file.id] = file
-                }
+                if (secondaryResult)
+                    for (let file of secondaryResult) {
+                        data.activities[activity].ogFiles[file.id] = file
+                    }
                 for (let project of results) {
                     data.activities[activity].projects[project.id] = project
                 }
             }, onComplete)
-            console.log(`filling in all of the projects in the activity of ${activity}`)
-        }, null, (frame) => {
+            console.log(`Filling in all of the projects of the activity of ${activity}`)
+        }, (frame) => {
             let files = []
             if (!frame.querySelector(".asset-card-wrapper")) return []
             for (const ogFile of frame.querySelectorAll(".asset-card-wrapper")) {
                 let item = ogFile.querySelector(".asset-card-title")
                 files.push({
-                    id: item.id.replace("TemplateDesignHeaderCard", ""),
-                    name: item.querySelector("p").textContent
+                    id: item.id.replace("TemplateDesignHeaderCard", ""), name: item.querySelector("p").textContent
                 })
             }
             return files
@@ -715,6 +715,11 @@ let sasGetProjectsOfActivity = (clazz, activity, onComplete = () => {
 let sasGetAllProjectsOfActivitiesOfClazz = (clazz, onComplete = () => {
 }, force = false) => {
     get(clazz, (data) => {
+        if (data.projects && !force) {
+            onComplete()
+            console.log("All students are up to date!")
+            return
+        }
         let i = 0
         let items = Object.values(data.activities)
         for (let activity of items) {
@@ -732,7 +737,7 @@ let sasGetAllProjectsOfActivitiesOfClazz = (clazz, onComplete = () => {
  * @param onComplete Run once complete.
  * @param force
  */
-let sasGetStudentsOfClass = (id, onComplete = () => {
+let sasStudentsAndClassCodeOf = (id, onComplete = () => {
 }, force = false) => {
     get(id, (data) => {
         if (data.students && !force) {
@@ -761,39 +766,60 @@ let sasGetStudentsOfClass = (id, onComplete = () => {
                 badgeCount: item.querySelector(".classroom-badge-cell").title.replace("This student has ", "").replace(" badges", "").replace(" badge", "")
 
             }
-        }, (students) => {
+        }, (students, code) => {
 
             modify(id, (data) => {
                 if (!data.students) data.students = {}
                 for (let student of students) {
-                    data.students[student.id] = student
+                    student.code =
+                        data.students[student.id] = student
                 }
 
             }, onComplete)
 
+        }, (container) => {
+            return container.querySelector("#teacherTooltipButton").textContent.replace("Class link: ", "")
         })
     })
 
 }
+const UpdateItems = Object.freeze({
+    STUDENTS: "students",
+
+})
+
+
 /**
  * UASR Based action to store all of a classroom's data.
  * @param id ID of class
  * @param onComplete Run once complete.
  * @param force
  */
-let usasAllClassroom = (id, onComplete = () => {
+let sasAllDataForClass = (id, onComplete = () => {
 }, force = false) => {
-
-    sasStudentCodeOfClass(id, () => {
+    sasStudentsAndClassCodeOf(id, () => {
         sasClassActivitiesOf(id, () => {
-            sasGetAllProjectsOfActivitiesOfClazz(id, () => {
-                sasGetStudentsOfClass(id, onComplete, force)
-            }, force)
+            sasGetAllProjectsOfActivitiesOfClazz(id, onComplete, force)
         }, force)
     }, force)
-
-
 }
+/**
+ * UASR Based action to store all of data needed by an activity.
+ * @param id ID of class
+ * @param activity
+ * @param onComplete Run once complete.
+ * @param force
+ */
+let sasAllDataForClassActivity = (id, activity, onComplete = () => {
+}, force = false) => {
+    sasStudentsAndClassCodeOf(id, () => {
+        sasClassActivitiesOf(id, () => {
+            sasGetProjectsOfActivity(id, activity, onComplete, force)
+        }, force)
+    }, force)
+}
+
+
 /**
  * Returns the current user that is logged in.
  * @returns {string}
@@ -819,7 +845,7 @@ let usasAllData = (onComplete = () => {
         getKeys((clazzIds) => {
             let i = 0
             for (let key of clazzIds) {
-                usasAllClassroom(key, () => {
+                sasAllDataForClass(key, () => {
                     if (++i >= clazzIds.length) onComplete()
                 })
             }
@@ -849,7 +875,6 @@ let updateStorage = () => {
                 })
                 return
             }
-            console.log("Collecting all!")
             usasAllData()
 
 
@@ -877,7 +902,7 @@ let disableView = (id) => {
     og.style.display = "block"
 
     for (let item of document.querySelectorAll(".view")) {
-        console.log("Removed")
+        console.log(`Disabled view: ${id}`)
         item.remove()
     }
     views[id].disable()
@@ -887,86 +912,90 @@ function contains_heb(str) {
     return (/[\u0590-\u05FF]/).test(str);
 }
 
-let galleryViewEnable = (projects = null) => enableView("gallery",
-    (container) => {
-        currentPage = PageType.GALLERY
+let galleryViewEnable = (projects = null) => enableView("gallery", (container) => {
+    currentPage = Context.GALLERY
 
-        let frame = document.createElement("iframe")
-        let h1 = document.createElement("h2")
-        h1.style.height = "5vh"
-        h1.style.width = "100vw"
-        h1.style.dir = "auto"
-
-
-        container.appendChild(h1)
-
-        container.appendChild(frame)
+    let frame = document.createElement("iframe")
+    let h1 = document.createElement("h2")
+    h1.style.height = "5vh"
+    h1.style.width = "100vw"
+    h1.style.dir = "auto"
 
 
-        let setFrame = (id, name) => {
-            console.log(`Setting frame to ID of ${id}`)
-            frame.src = `https://www.tinkercad.com/things/${id}/edit`
-            if (contains_heb(name)) {
-                h1.style.textAlign = "right"
-            } else h1.style.textAlign = "left"
-            h1.innerText = name
-            awaitResult(() => {
-                return frame.contentDocument.querySelector("#viewcube-home-button") && currentPage === PageType.GALLERY
-            }, () => {
-                frame.contentDocument.querySelector("#sidebarContainer").remove()
-                frame.contentDocument.querySelector(".editor__tab__subnav").remove()
-                frame.contentDocument.querySelector(".editor__topnav").remove()
-                frame.contentDocument.querySelector(".hud").remove()
-                let canvas = frame.contentDocument.querySelector("canvas")
-                canvas.style.width = "100vw"
-                frame.style.height = "95vh"
-            }, 300)
-        }
-        frame.style.width = "100vw"
-        frame.style.height = "95vh"
-        let i = 1
+    container.appendChild(h1)
 
-        let loop = (projects) => {
+    container.appendChild(frame)
+
+
+    let setFrame = (id, name) => {
+
+        frame.src = `https://www.tinkercad.com/things/${id}/edit`
+        if (contains_heb(name)) {
+            h1.style.textAlign = "right"
+        } else h1.style.textAlign = "left"
+        h1.innerText = name
+        awaitResult(() => {
+            let document = frame.contentDocument
+            if (currentPage === Context.GALLERY && document) {
+                return document.querySelector("#viewcube-home-button")
+            }
+            return false
+        }, () => {
+            frame.contentDocument.querySelector("#sidebarContainer").remove()
+            frame.contentDocument.querySelector(".editor__tab__subnav").remove()
+            frame.contentDocument.querySelector(".editor__topnav").remove()
+            frame.contentDocument.querySelector(".hud").remove()
+            let canvas = frame.contentDocument.querySelector("canvas")
+            canvas.style.width = "100vw"
+            frame.style.height = "95vh"
+        }, 300)
+    }
+    frame.style.width = "100vw"
+    frame.style.height = "95vh"
+    let i = 1
+
+    let loop = (projects) => {
+        chrome.storage.local.get(["speed"], (data) => {
+            let speed = data ? 6 - data.speed : 3
             setTimeout(() => {
-                if (currentPage !== PageType.GALLERY)
-                    return
+                if (currentPage !== Context.GALLERY) return
 
-                if (projects.length <= i)
-                    i = 0
+                if (projects.length <= i) i = 0
 
                 setFrame(projects[i].id, projects[i].name)
                 i++
 
                 loop(projects)
 
-            }, 20000)
-        }
+            }, speed * 10000)
+        })
+    }
 
-        if (projects) {
+    if (projects) {
+        setFrame(projects[0].id, projects[0].name)
+        loop(projects)
+    } else {
+        getGalleryProjects((projects) => {
             setFrame(projects[0].id, projects[0].name)
             loop(projects)
-        } else {
-            getGalleryProjects((projects) => {
-                setFrame(projects[0].id, projects[0].name)
-                loop(projects)
-            })
-        }
-        container.appendChild(bigButton("Back", () => {
-            disableView("gallery")
-        }))
+        })
+    }
+    container.appendChild(bigButton("Back", () => {
+        disableView("gallery")
+    }))
 
 
-    }, () => {
+}, () => {
 
 
-    })
+})
 let getGalleryProjects = (onComplete) => {
     let projects = []
     let i = 0
     getKeys((keys => {
         for (const clazzID of keys) {
             get(clazzID, (clazz) => {
-                console.log(`Retrieved class of id ${clazzID}`)
+
                 let students = []
                 for (const student of Object.values(clazz.students)) {
                     if (student.badgeCount !== "0" && student.badgeCount !== null && student.badgeCount !== undefined) {
@@ -977,7 +1006,7 @@ let getGalleryProjects = (onComplete) => {
                     for (const project of Object.values(activity.projects)) {
                         if (students.includes(project.author)) {
                             projects.push(project)
-                            console.log(`Pushing project to items: ${project.id}`)
+
                         }
 
                     }
@@ -996,10 +1025,11 @@ let getGalleryProjects = (onComplete) => {
 
 
 let teacherViewEnable = () => enableView("teacher", (container) => {
-    currentPage = PageType.TEACHER
+    currentPage = Context.TEACHER
 
     let header = document.createElement("div")
     let row = document.createElement("div")
+    let firstView = true
 
 
     let frame = document.createElement("iframe")
@@ -1043,83 +1073,30 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
 
     getCurrentActivityAndClassID((clazzID, activityID) => {
         get(clazzID, (clazz) => {
-            header.classList.add("btn-group")
-            header.style.display = "flex"
-            header.style.padding = "1%"
-            header.appendChild(bigButton("Back", () => {
-                disableView("teacher")
-                currentPage = PageType.ACTIVITY
-            }))
-            header.appendChild(bigButton("Reload", () => {
-                update(() => {
-                })
-            }))
-            let autoPlaying = false
-
-            let autPlayLoop = () => {
-                setTimeout(() => {
-                    if (autoPlaying && currentPage === PageType.TEACHER) {
-                        let items = document.querySelectorAll(".selection")
-                        let next = false
-                        let i = 0
-                        for (const item of items) {
-                            if (++i >= items.length) {
-                                setFrame(items[0].id, items[0])
-                            }
-                            if (next) {
-                                setFrame(item.id, item)
-                                break
-                            }
-                            if (item === previous) {
-                                next = true
-                            }
-                        }
-                        autPlayLoop()
-                    }
-                }, 30000)
-            }
-            let autoButton = bigButton("Auto", () => {
-                autoPlaying = !autoPlaying
-                if (autoPlaying) {
-                    autoButton.style.backgroundColor = "#4076c7"
-                    autoButton.style.color = "#fff"
-                } else {
-                    autoButton.style.backgroundColor = "#fff"
-                    autoButton.style.color = "#4076c7"
-                }
-
-                autPlayLoop()
-            })
-            header.appendChild(autoButton)
-
-            header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code.replaceAll("-", ""))))
             let first = true
-            for (let project of Object.values(clazz.activities[activityID].projects)) {
+            if (clazz.activities[activityID])
+                for (let project of Object.values(clazz.activities[activityID].projects)) {
 
-                let b = smallButton(clazz.students[project.author].name, () => {
-                    setFrame(project.id, b)
-                })
-                if (first) {
-                    setFrame(project.id, b)
-                    first = false
+                    let b = smallButton(clazz.students[project.author].name, () => {
+                        setFrame(project.id, b)
+                    })
+                    if (first) {
+                        setFrame(project.id, b)
+                        first = false
+                    }
+                    b.id = project.id
+                    b.classList.add("selection")
+                    b.style.width = "13vw"
+                    studentList.appendChild(b)
+
                 }
-                b.id = project.id
-                b.classList.add("selection")
-                b.style.width = "13vw"
-                studentList.appendChild(b)
-
-            }
-            let update = (onComplete) => {
+            let updateSelection = (onComplete) => {
                 get(clazzID, (clazz) => {
 
 
                     let getProjects = () => {
-                        let a = clazz.activities[activityID].projects
-                        for (let value of Object.values(a)) {
-                            console.log(`Item: ${value.id}`)
-                        }
-
-                        return a
+                        if (!clazz.activities[activityID]) return []
+                        return clazz.activities[activityID].projects
                     }
                     let projectIDS = () => {
                         let ids = []
@@ -1131,53 +1108,112 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
 
 
                     let alreadyActive = []
-                    sasGetStudentsOfClass(clazzID, () => {
-                        sasClassActivitiesOf(clazzID, () => {
+                    let ids = projectIDS()
+                    for (const elem of document.querySelectorAll(".selection")) {
+                        if (!ids.includes(elem.id)) {
+                            elem.remove()
+                        } else {
+                            alreadyActive.push(elem.id)
+                        }
+                    }
 
-                        }, true)
-                        sasGetProjectsOfActivity(clazzID, activityID, () => {
+                    for (const project of Object.values(getProjects())) {
 
-                            let ids = projectIDS()
-                            for (const elem of document.querySelectorAll(".selection")) {
-                                if (!ids.includes(elem.id)) {
-                                    elem.remove()
-                                } else {
-                                    alreadyActive.push(elem.id)
-                                }
-                            }
+                        if (alreadyActive.includes(project.id)) {
+                            continue
+                        }
+                        let b = smallButton(clazz.students[project.author].name, () => {
+                            setFrame(project.id, b)
+                        })
+                        b.id = project.id
+                        b.classList.add("selection")
+                        b.style.width = "13vw"
+                        studentList.appendChild(b)
 
-                            for (const project of Object.values(getProjects())) {
-                                console.log(project.id)
-                                if (alreadyActive.includes(project.id)) {
-
-                                    continue
-                                }
-                                console.log(`Adding button for: ${project.id}`)
-                                let b = smallButton(clazz.students[project.author].name, () => {
-                                    setFrame(project.id, b)
-                                })
-                                b.id = project.id
-                                b.classList.add("selection")
-                                b.style.width = "13vw"
-                                studentList.appendChild(b)
-
-                            }
-                            onComplete()
-
-
-                        }, true)
-
-                    }, true)
+                    }
+                    onComplete()
                 })
+            }
+
+            let update = (onComplete) => {
+                if (firstView) {
+                    fullReload(onComplete)
+                    firstView = false
+                } else {
+                    sasGetProjectsOfActivity(clazzID, activityID, () => {
+                        updateSelection(onComplete)
+                    }, true)
+                }
+
 
             }
+            let fullReload = (onComplete = () => {
+            }) => {
+                sasGetForActivity(clazzID, activityID, () => {
+                    updateSelection(() => {
+                        console.log("Full reload done!")
+                        onComplete()
+                    })
+                })
+            }
+            //ID Used in case a user clicks multiple times on the auto button :)
+            let autoPlayID = 0
+
+            let autPlayLoop = (id) => {
+                chrome.storage.local.get(["speed"], (data) => {
+                    let speed = data ? 6 - data.speed : 3
+
+
+                    setTimeout(() => {
+                        if (autoPlayID === id && currentPage === Context.TEACHER) {
+                            let items = document.querySelectorAll(".selection")
+                            let next = false
+                            let i = 0
+                            for (const item of items) {
+                                if (++i >= items.length) {
+                                    setFrame(items[0].id, items[0])
+                                }
+                                if (next) {
+                                    setFrame(item.id, item)
+                                    break
+                                }
+                                if (item === previous) {
+                                    next = true
+                                }
+                            }
+                            autPlayLoop(id)
+                        }
+                    }, speed * 10000)
+                })
+            }
+
+            function isOdd(num) {
+                return num % 2;
+            }
+
+            let autoButton = bigButton("Auto", () => {
+
+                if (isOdd(++autoPlayID)) {
+                    autoButton.style.backgroundColor = "#4076c7"
+                    autoButton.style.color = "#fff"
+                    autPlayLoop(autoPlayID)
+                } else {
+                    autoButton.style.backgroundColor = "#fff"
+                    autoButton.style.color = "#4076c7"
+                }
+
+
+            })
+
+
             let loop = () => {
+
                 setTimeout(() => {
                     update(() => {
-
-                        if (currentPage === PageType.TEACHER)
+                        if (currentPage === Context.TEACHER) {
+                            console.log("Little update run!")
                             loop()
-                        else {
+                        } else {
                             console.log("Update loop stopped!")
                         }
                     })
@@ -1185,6 +1221,28 @@ let teacherViewEnable = () => enableView("teacher", (container) => {
                 }, 5000)
             }
             loop()
+
+
+            /**
+             * Visual placement of items.
+             */
+            header.classList.add("btn-group")
+            header.style.display = "flex"
+            header.style.padding = "1%"
+            header.appendChild(bigButton("Back", () => {
+                disableView("teacher")
+                currentPage = Context.ACTIVITY
+            }))
+
+
+            header.appendChild(bigButton(clazz.code, () => copyTextToClipboard(clazz.code.replaceAll("-", ""))))
+
+
+            header.appendChild(autoButton)
+
+            header.appendChild(bigButton("Reload", () => {
+                fullReload()
+            }))
 
 
         })
@@ -1203,8 +1261,6 @@ let getCurrentClazzID = (onFound) => {
     getCurrentURL((data) => {
         let clazzRegex = /(https:\/\/www\.tinkercad\.com\/classrooms\/)(\w+)\/?(.+)*\/(\w+)/gm
         let v = clazzRegex.exec(data)
-
-        console.log(`Found data: ${v[2]}`)
         onFound(v[2])
 
     }, 100)
@@ -1237,9 +1293,7 @@ let getCurrentActivity = (onFound) => {
     })
 }
 
-let test = () => {
-    console.log("Test")
-}
+
 let main = () => {
     onURLChange()
 
@@ -1252,7 +1306,7 @@ let main = () => {
         })
         container.querySelector("#newClassButton").insertAdjacentElement('afterend', elem)
 
-    }, 500, PageType.CLASSES)
+    }, 500, Context.CLASSES)
 
     let easyTools = (context) => {
         onElementsLoad(".thing-box", "border", (item) => {
@@ -1281,16 +1335,14 @@ let main = () => {
             })
             button("STL", () => {
                 download({
-                    id: id.replace(" ", ""),
-                    downloadName: name.replace(/ /g, '')
+                    id: id.replace(" ", ""), downloadName: name.replace(/ /g, '')
                 }, "tinkerAssistant", "stl", () => {
                 })
 
             })
             button("SVG", () => {
                 download({
-                    id: id.replace(" ", ""),
-                    downloadName: name.replace(/ /g, '')
+                    id: id.replace(" ", ""), downloadName: name.replace(/ /g, '')
                 }, "tinkerAssistant", "stl", () => {
                 })
 
@@ -1302,8 +1354,8 @@ let main = () => {
         }, 3000, context)
 
     }
-    easyTools(PageType.GENERAL)
-    easyTools(PageType.ACTIVITY)
+    easyTools(Context.GENERAL)
+    easyTools(Context.ACTIVITY)
 
     onElementLoad(".class-projects-list-toolbar", "gallery", (container) => {
         let elem = bigButton("Gallery", () => {
@@ -1325,7 +1377,7 @@ let main = () => {
         header.appendChild(elem)
 
 
-    }, 500, PageType.ACTIVITIES)
+    }, 500, Context.ACTIVITIES)
 
     onElementsLoad(".project-toolbar-top", "downloadButtons", (item) => {
         let elem = item.querySelector(".btn-group")
@@ -1338,39 +1390,38 @@ let main = () => {
                 galleryViewEnable(Object.values(activity.projects))
             })
         }))
+
         getCurrentActivityAndClassID((clazzID, activityID) => {
             get(clazzID, (clazz) => {
-                let activityName = clazz.activities[activityID].name
-                let projects = clazz.activities[activityID].projects
-                let newProjects = {}
+                let lazyAction = (onComplete) => {
+                    sasAllDataForClassActivity(clazzID, activityID, () => {
+                        let activityName = clazz.activities[activityID].name
+                        let projects = clazz.activities[activityID].projects
+                        let downloadItems = {}
 
-                for (let project of Object.values(projects)) {
-                    newProjects[project.id] = {
-                        id: project.id,
-                        downloadName: clazz.students[project.author].name.replace(/ /g, '')
-                    }
-                    console.log(clazz.students[project.author].name.replace(/ /g, ''))
+                        let directoryName = `${clazz.name.replace(/ /g, '')}/${activityName.replace(/ /g, '')}`
+                        for (let project of Object.values(projects)) {
+                            downloadItems[project.id] = {
+                                id: project.id,
+                                downloadName: clazz.students[project.author].name.replace(/ /g, '')
+                            }
 
+                        }
+                        onComplete(directoryName, downloadItems)
+                    }, true)
                 }
 
-                let directoryName = `${clazz.name.replace(/ /g, '')}/${activityName.replace(/ /g, '')}`
-
-                console.log(`Directory: ${directoryName}`)
-
-
-                elem.appendChild(downloadAllButton("stl", directoryName, newProjects))
-                elem.appendChild(downloadAllButton("svg", directoryName, newProjects))
+                elem.appendChild(lazyDownloadAllButton("stl", lazyAction))
+                elem.appendChild(lazyDownloadAllButton("svg", lazyAction))
             })
+
 
         })
 
 
-    }, 3000, PageType.ACTIVITY)
+    }, 300, Context.ACTIVITY)
 
 
     updateStorage()
 }
 main()
-
-
-

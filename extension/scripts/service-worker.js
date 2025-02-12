@@ -14,7 +14,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             console.log(`Could not find a command with the name of ${args[0]}`)
             return
         }
-        console.log("Sending back some stuff :)")
+
         //Actually running command's action using the arguments provided with the sendResponse back
         command.action(args, sendResponse)
 
