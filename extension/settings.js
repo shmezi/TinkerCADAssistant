@@ -76,16 +76,16 @@ let toggleFeature = (element) => {
     selectedText.innerText = newSelected.length ? items : "Select Features ▼";
 }
 
-for (const value of document.querySelectorAll(".feature")) {
-    value.onclick = () => {
-        toggleFeature(value)
-    }
-}
-for (const value of document.querySelectorAll(".dropdown")) {
-    value.onclick = () => {
-        toggleDropdown()
-    }
-}
+// for (const value of document.querySelectorAll(".feature")) {
+//     value.onclick = () => {
+//         toggleFeature(value)
+//     }
+// }
+// for (const value of document.querySelectorAll(".dropdown")) {
+//     value.onclick = () => {
+//         toggleDropdown()
+//     }
+// }
 
 let retrieveALLActivityNames = (onComplete) => {
     let titles = []
@@ -113,16 +113,16 @@ let retrieveALLActivityNames = (onComplete) => {
     })
 }
 
-retrieveALLActivityNames((names) => {
-    let container = document.querySelector(".selection")
-    for (const name of names) {
-        let className = document.createElement("div")
-        className.classList.add("feature", "unselected")
-        className.textContent = name
-        container.appendChild(className)
-    }
-
-})
+// retrieveALLActivityNames((names) => {
+//     let container = document.querySelector(".selection")
+//     for (const name of names) {
+//         let className = document.createElement("div")
+//         className.classList.add("feature", "unselected")
+//         className.textContent = name
+//         container.appendChild(className)
+//     }
+//
+// })
 chrome.storage.local.get(["speed"], (speed) => {
     if (!speed)
         chrome.storage.local.set({speed: 4}, () => {
