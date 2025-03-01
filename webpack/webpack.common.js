@@ -5,10 +5,10 @@ const srcDir = path.join(__dirname, "..", "src");
 
 module.exports = {
     entry: {
-      popup: path.join(srcDir, 'popup.tsx'),
-      options: path.join(srcDir, 'options.tsx'),
-      background: path.join(srcDir, 'background.ts'),
-      content_script: path.join(srcDir, 'content_script.tsx'),
+        common: path.join(srcDir, "common.tsx"),
+        api_content: path.join(srcDir, 'api_content.tsx'),
+        service_worker: path.join(srcDir, 'service_worker.ts'),
+        main_content: path.join(srcDir, 'main_content.tsx'),
     },
     output: {
         path: path.join(__dirname, "../dist/js"),
@@ -18,7 +18,7 @@ module.exports = {
         splitChunks: {
             name: "vendor",
             chunks(chunk) {
-              return chunk.name !== 'background';
+                return chunk.name !== 'background';
             }
         },
     },
@@ -36,7 +36,7 @@ module.exports = {
     },
     plugins: [
         new CopyPlugin({
-            patterns: [{ from: ".", to: "../", context: "public" }],
+            patterns: [{from: ".", to: "../", context: "public"}],
             options: {},
         }),
     ],

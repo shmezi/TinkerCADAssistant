@@ -1,0 +1,135 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Roboto:wght@100..900&family=Tinos:wght@400;700&display=swap');
+
+:root {
+    --background: #F4F4F4;
+    --primary: #4A90E2;
+    --secondary: #4fe7ff;
+    --dark: #2C3E50;
+    --light: #ECF0F1;
+    --text: #1C2833;
+    --shadow: rgba(0, 0, 0, 0.1);
+}
+
+.view-printer {
+    font-family: "Inter", sans-serif;
+    background: var(--background);
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.view-printer h1, .view-printer h2 {
+    margin: 0;
+}
+
+.view-printer h1 {
+    font-size: 3.5rem;
+    font-weight: 700;
+    color: var(--text);
+    text-align: center;
+}
+
+.view-printer h2 {
+    font-size: 2rem;
+    color: var(--dark);
+}
+
+/* Main layout */
+.view-printer .main-container {
+    display: flex;
+    justify-content: center;
+    width: 90%;
+    max-width: 1200px;
+    flex-direction: column;
+    align-items: center;
+}
+
+.view-printer .container {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.view-printer .title {
+    margin-bottom: 20px;
+}
+
+/* Project container */
+.view-printer .projects {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    cursor: move;
+}
+
+.view-printer .project-container {
+    background: var(--light);
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 800px;
+    box-shadow: 0 4px 10px var(--shadow);
+    transition: transform 0.3s ease-in-out;
+}
+
+.view-printer .project-container:hover {
+    transform: scale(1.02);
+}
+
+.view-printer .project-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.view-printer .project-title h1 {
+    font-size: 2.5rem;
+    color: var(--primary);
+    transition: color 0.3s;
+}
+
+.view-printer .project-title h1:hover {
+    color: var(--secondary);
+}
+
+.view-printer .group {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--dark);
+}
+
+/* Parts */
+.view-printer .part-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.view-printer .part {
+    background: var(--light);
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px var(--shadow);
+    transition: transform 0.3s, background 0.3s;
+    min-width: 150px;
+    flex: 1;
+    text-align: center;
+}
+
+.view-printer .part:hover {
+    transform: scale(1.05);
+    background: var(--secondary);
+    color: white;
+}
+
+.view-printer .part p {
+    margin: 5px 0;
+    font-size: 1.4rem;
+    font-weight: 600;
+}

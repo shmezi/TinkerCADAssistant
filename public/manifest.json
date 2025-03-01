@@ -1,35 +1,55 @@
 {
   "manifest_version": 3,
-
-  "name": "Chrome Extension TypeScript Starter",
-  "description": "Chrome Extension, TypeScript, Visual Studio Code",
-  "version": "1.0",
-
-  "options_ui": {
-    "page": "options.html"
+  "name": "TinkerCAD Assistant",
+  "version": "3.0",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   },
-
-  "action": {
-    "default_icon": "icon.png",
-    "default_popup": "popup.html"
-  },
-
-  "content_scripts": [
-      {
-          "matches": ["<all_urls>"],
-          "js": ["js/vendor.js", "js/content_script.js"]
-      }
-  ],
-
-  "background": {
-    "service_worker": "js/background.js"
-  },
-
   "permissions": [
-    "storage"
+    "downloads",
+    "webNavigation",
+    "tabs",
+    "storage",
+    "history"
   ],
-
   "host_permissions": [
-    "<all_urls>"
-  ]
+    "https://www.tinkercad.com/*"
+  ],
+  "description": "Add the tinkercad assistant to aid you with managing classrooms in tinkercad",
+  "content_scripts": [
+    {
+      "run_at": "document_end",
+      "js": [
+        "js/main_content.js"
+      ],
+      "css": [
+        "style/printer.css",
+        "style/reset.css"
+
+      ],
+      "matches": [
+        "https://www.tinkercad.com/*"
+      ]
+    },
+    {
+      "run_at": "document_end",
+      "js": [
+        "js/api_content.js"
+      ],
+      "matches": [
+        "https://api-reader.tinkercad.com/*"
+      ]
+    }
+  ],
+  "background": {
+    "service_worker": "js/service_worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Click to view a popup",
+    "default_popup": "settings.html"
+  }
 }
