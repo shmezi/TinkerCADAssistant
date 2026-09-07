@@ -3,6 +3,8 @@ import {doesSelectorExist} from "../utils/advanced-html-events";
 import {PatchLocation} from "./PatchLocation";
 import {DownloadAllPatch} from "./defined/DownloadAllPatch";
 
+export const stripTinkerPrefix = (url: string) => url.substring(26)
+
 export class PatchHandler {
     registeredPatches: Array<Patch> = []
 
@@ -67,6 +69,7 @@ export class PatchHandler {
 
     constructor() {
         this.registerPatch(new DownloadAllPatch())
+        this.onUrlChange(stripTinkerPrefix(window.location.href));
 
         setInterval(this.patchLoop, 200);
     }

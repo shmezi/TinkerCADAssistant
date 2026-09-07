@@ -2,6 +2,7 @@ import {Patch} from "../Patch";
 import {PatchLocation} from "../PatchLocation";
 import {mediumButton} from "../../scraping/tinkerbuttons";
 import {info} from "../../utils/Logger";
+import {mainPageLoader} from "../../entrypoint/main-content";
 
 export class DownloadAllPatch extends Patch {
     id = "download-patch"
@@ -11,8 +12,9 @@ export class DownloadAllPatch extends Patch {
     location = PatchLocation.CHILD
 
     patch(): Element {
-        return mediumButton("Download projects", () => {
+        return mediumButton("Download projects", async () => {
             info("Print items")
+            await mainPageLoader.load(document, "api")
         })
     }
 

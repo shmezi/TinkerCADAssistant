@@ -4,11 +4,11 @@ import {waitForSelectorsInDoc} from "../utils/advanced-html-events";
 import {PageLoader} from "../pages/PageLoader";
 
 info("Api-Content has started!")
-const loader = new PageLoader()
+const pageLoader = new PageLoader()
 const onEnable = async () => {
     let value = await queryInContainer("https://api-reader.tinkercad.com/users")
     await waitForSelectorsInDoc(document, ["body"])
-    await loader.load(document, "api")
+    await pageLoader.load(document, "api")
     console.log(value)
 }
 onEnable()
