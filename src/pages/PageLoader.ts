@@ -3,6 +3,7 @@ import {waitForSelectorsInDoc} from "../utils/advanced-html-events";
 import {createRoot, Root} from "react-dom/client";
 import {APIPage} from "./defined/APIPage";
 import {error, info} from "../utils/Logger";
+import {TeacherPage} from "./defined/TeacherPage";
 
 
 export class PageLoader {
@@ -48,6 +49,7 @@ export class PageLoader {
 
     constructor() {
         this.registerPage(new APIPage())
+        this.registerPage(new TeacherPage())
     }
 
 

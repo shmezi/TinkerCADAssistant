@@ -2,7 +2,7 @@ import {Patch} from "../Patch";
 import {PatchLocation} from "../PatchLocation";
 import {mediumButton} from "../../scraping/tinkerbuttons";
 import {info} from "../../utils/Logger";
-import {mainPageLoader} from "../../entrypoint/main-content";
+import {extractFromUrl} from "../../scraping/url-extraction";
 
 export class DownloadAllPatch extends Patch {
     id = "download-patch"
@@ -14,7 +14,9 @@ export class DownloadAllPatch extends Patch {
     patch(): Element {
         return mediumButton("Download projects", async () => {
             info("Print items")
-            await mainPageLoader.load(document, "api")
+            const activityInfo = extractFromUrl(window.location.href)
+
+            // await mainPageLoader.load(document, "teacher")
         })
     }
 
