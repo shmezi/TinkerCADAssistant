@@ -1,0 +1,41 @@
+.view iframe {
+    border: none;
+    width: 87vw;
+    height: 92vh;
+}
+
+.view .header {
+    height: 8vh;
+    display: flex;
+    align-items: center;w
+    justify-content: center;
+    margin: 0
+}
+
+.view .big-button{
+    max-height: 8vh;
+}
+.view ol {
+    align-items: center;
+    width: 13vw;
+    list-style-type: none;
+    padding: 0;
+    display: inline;
+    overflow: hidden;
+    overflow-y: scroll;
+    height: 90vh;
+    flex-direction: column;
+}
+
+.view .row-content {
+    display: flex;
+    height: 92vh;
+}
+.view .project{
+    width: 13vw;
+}
+
+
+.view .selected {
+    border: 2px solid #FFD700;
+}

@@ -1,14 +1,13 @@
 const webpack = require("webpack");
 const path = require("path");
 const CopyPlugin = require("copy-webpack-plugin");
-const srcDir = path.join(__dirname, "..", "src");
+const srcDir = path.join(__dirname, "..", "src/entrypoint");
 
 module.exports = {
     entry: {
-        common: path.join(srcDir, "common.tsx"),
-        api_content: path.join(srcDir, 'api_content.tsx'),
-        service_worker: path.join(srcDir, 'service_worker.ts'),
-        main_content: path.join(srcDir, 'main_content.tsx'),
+        api_content: path.join(srcDir, 'api-content.tsx'),
+        main_content: path.join(srcDir, 'main-content.tsx'),
+        worker: path.join(srcDir, 'worker.ts'),
     },
     output: {
         path: path.join(__dirname, "../dist/js"),

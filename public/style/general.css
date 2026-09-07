@@ -1,0 +1,15 @@
+.shiftUp {
+    display: none !important;
+}
+
+.shiftDown {
+    display: initial !important;
+}
+
+.big-button {
+    height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: Open-Sans, Helvetica, Arial, sans-serif;
+}

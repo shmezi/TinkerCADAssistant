@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TinkerCAD Assistant",
-  "version": "3.0",
+  "version": "4.0",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -27,8 +27,9 @@
       ],
       "css": [
         "style/printer.css",
-        "style/reset.css"
-
+        "style/reset.css",
+        "style/general.css",
+        "style/teacher.css"
       ],
       "matches": [
         "https://www.tinkercad.com/*"
@@ -45,7 +46,7 @@
     }
   ],
   "background": {
-    "service_worker": "js/service_worker.js",
+    "service_worker": "js/worker.js",
     "type": "module"
   },
   "action": {
