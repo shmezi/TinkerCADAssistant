@@ -1,8 +1,11 @@
 import {pollUntil, TimeoutError} from "./polling";
 
-const TIMEOUT = 5000;
 
+export const doesSelectorExist = (doc: Document | null, selector: string) => {
+    if (!doc) return false
 
+    return doc.querySelector(selector) != null
+}
 const doAllSelectorsExistOnDocument = (doc: Document | null, selectors: string[]) => {
 
     if (!doc) return false

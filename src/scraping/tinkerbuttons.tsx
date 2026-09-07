@@ -33,7 +33,7 @@ export const smallButton = (text: string, onclick: () => void): HTMLButtonElemen
     button.onclick = onclick
     return button
 }
-export const smallButton2 = (text: string, onclick: () => void): HTMLButtonElement => {
+export const mediumButton = (text: string, onclick: () => void): HTMLButtonElement => {
     const button = document.createElement("button");
     button.textContent = text
     button.onclick = onclick
