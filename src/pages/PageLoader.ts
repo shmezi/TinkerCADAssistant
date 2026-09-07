@@ -2,7 +2,7 @@ import {Page} from "./Page";
 import {waitForSelectorsInDoc} from "../utils/advanced-html-events";
 import {createRoot, Root} from "react-dom/client";
 import {APIPage} from "./defined/APIPage";
-import {error} from "../utils/Logger";
+import {error, info} from "../utils/Logger";
 
 
 export class PageLoader {
@@ -19,7 +19,7 @@ export class PageLoader {
     }
 
     public load = async (doc: Document, page: string) => {
-        error(`Attempting to load ${page}`)
+        info(`Attempting to load ${page}`)
 
         await waitForSelectorsInDoc(doc, ["body"])
         let newPage = this.pages.get(page)
@@ -42,7 +42,6 @@ export class PageLoader {
         // 4. Mount React safely
         const root = createRoot(appRoot);
         root.render(newPage.content());
-
 
 
     }

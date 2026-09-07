@@ -42,7 +42,7 @@ export const queryInContainer = async (url: string): Promise<unknown> => {
 
         const parsed = JSON.parse(content.textContent)
         queryFrame.remove()
-        info(parsed)
+
         return resolve(parsed)
 
 

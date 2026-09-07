@@ -7,8 +7,8 @@ info("Api-Content has started!")
 const loader = new PageLoader()
 const onEnable = async () => {
     let value = await queryInContainer("https://api-reader.tinkercad.com/users")
-    // await waitForSelectorsInDoc(document, ["body"])
-    // await loader.load(document, "api")
-
+    await waitForSelectorsInDoc(document, ["body"])
+    await loader.load(document, "api")
+    console.log(value)
 }
 onEnable()
