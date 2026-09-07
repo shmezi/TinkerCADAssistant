@@ -12,12 +12,13 @@ module.exports = {
     output: {
         path: path.join(__dirname, "../dist/js"),
         filename: "[name].js",
+        clean: true, // Clean the output directory before build
     },
     optimization: {
         splitChunks: {
-            name: "vendor",
+            // Exclude content scripts from chunk splitting
             chunks(chunk) {
-                return chunk.name !== 'background';
+                return chunk.name !== 'api_content' && chunk.name !== 'main_content';
             }
         },
     },

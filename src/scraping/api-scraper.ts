@@ -3,7 +3,7 @@
 // I-Frame loading data, maybe in parallel
 // Return data when complete
 
-import {waitForSelector} from "../utils/advanced-html-events";
+import {waitForSelectorInFrame} from "../utils/advanced-html-events";
 import {info} from "../utils/Logger";
 
 const createQueryFrame = (url: string) => {
@@ -29,7 +29,7 @@ export const queryInContainer = async (url: string): Promise<unknown> => {
             return reject(new Error("Document failed to exist!"))
         }
 
-        await waitForSelector(queryFrame, ["pre"])
+        await waitForSelectorInFrame(queryFrame, ["pre"])
 
 
         const content = queryFrame.contentDocument.querySelector("pre")
