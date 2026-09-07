@@ -35,7 +35,7 @@ export const queryInContainer = async (url: string): Promise<unknown> => {
         const content = queryFrame.contentDocument.querySelector("pre")
 
         if (!content || !content.textContent) {
-            console.log(content)
+
             queryFrame.remove()
             return reject(new Error("Content failed to load!"))
         }

@@ -4,8 +4,7 @@ const TIMEOUT = 5000;
 
 
 const doAllSelectorsExistOnDocument = (doc: Document | null, selectors: string[]) => {
-    console.log(doc)
-    console.log(selectors)
+
     if (!doc) return false
 
     return selectors.every((selector) => doc.querySelector(selector) != null)
