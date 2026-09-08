@@ -3,7 +3,9 @@ import {PatchLocation} from "../PatchLocation";
 import {mediumButton} from "../../scraping/tinkerbuttons";
 import {info} from "../../utils/Logger";
 import {extractFromUrl} from "../../scraping/url-extraction";
-import {commandClient} from "../../entrypoint/main-content";
+import {queryProjects} from "../../data/DataQuery";
+import {DownloadJob} from "../../download/DownloadJob";
+import {requestDownload} from "../../data/request-download";
 
 export class DownloadAllPatch extends Patch {
     id = "download-patch"
@@ -16,13 +18,15 @@ export class DownloadAllPatch extends Patch {
         return mediumButton("Download projects", async () => {
             info("Print items")
             const activityInfo = extractFromUrl(window.location.href)
-            const opened = await commandClient.sendCommand("worker", "open_api", null)
-            if (!opened.ok) throw new Error(opened.error)
+            const projects = await queryProjects(activityInfo)
+            if (!projects) return
+            // const value = await query(`class/${activityInfo.clazz}/project/${activityInfo.activity}/designs`)
+            const jobs = projects.map((project): DownloadJob => {
+                return new DownloadJob(project.id, "tinkercad", `${project.description}`, "stl")
+            })
+            await requestDownload(jobs)
 
-            const value = await commandClient.sendCommand("api", "fetch", "https://api-reader.tinkercad.com/users")
-            if (!value.ok) throw new Error(value.error)
-            // await mainPageLoader.load(document, "teacher")
-            console.log(value.data)
+
         })
     }
 

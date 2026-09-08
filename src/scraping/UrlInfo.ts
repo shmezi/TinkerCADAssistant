@@ -1,4 +1,4 @@
-export interface ExtractedUrlInformation {
+export interface UrlInfo {
     clazz: string,
     activity: string | null
 }

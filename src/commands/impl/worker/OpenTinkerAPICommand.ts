@@ -1,5 +1,5 @@
 import {Command, CommandContext} from "../../Command";
-import TabChangeInfo = chrome.tabs.TabChangeInfo;
+
 
 export class OpenTinkerAPICommand extends Command {
 
@@ -14,6 +14,7 @@ export class OpenTinkerAPICommand extends Command {
                 url: apiURL,
                 active: false
             });
+
 
             resolve()
         })
