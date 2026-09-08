@@ -18,6 +18,9 @@ interface ClientLocation {
     frameId?: number
 }
 
+const CLIENT_STARTUP_TIMEOUT = 10_000
+const CLIENT_POLL_INTERVAL = 100
+
 /** Service-worker endpoint and logical client-ID router. */
 export class CommandServer {
     readonly executor = new CommandExecutor()
@@ -34,6 +37,7 @@ export class CommandServer {
     listen(): this {
         if (this.listening) return this
         chrome.runtime.onMessage.addListener(this.onIncomingMessage)
+        chrome.tabs.onRemoved.addListener(this.onTabRemoved)
         this.listening = true
         return this
     }
@@ -41,6 +45,7 @@ export class CommandServer {
     dispose(): void {
         if (!this.listening) return
         chrome.runtime.onMessage.removeListener(this.onIncomingMessage)
+        chrome.tabs.onRemoved.removeListener(this.onTabRemoved)
         this.listening = false
     }
 
@@ -88,14 +93,29 @@ export class CommandServer {
         return true
     }
 
-    private deliver<TResponse>(message: CommandMessage): Promise<CommandResponse<TResponse>> {
-        const target = typeof message.recipient === "number"
-            ? {tabId: message.recipient}
-            : this.clients.get(message.recipient)
-        if (!target) {
-            return Promise.reject(new Error(`Command client "${message.recipient}" is not registered`))
+    private async deliver<TResponse>(message: CommandMessage): Promise<CommandResponse<TResponse>> {
+        if (typeof message.recipient === "number") {
+            return this.sendToTab<TResponse>({tabId: message.recipient}, message)
         }
 
+        const clientId = message.recipient
+        let target = await this.waitForClient(clientId)
+        try {
+            return await this.sendToTab<TResponse>(target, message)
+        } catch {
+            // The registered tab may have closed before onRemoved was observed.
+            if (this.clients.get(clientId)?.tabId === target.tabId) {
+                this.clients.delete(clientId)
+            }
+            target = await this.waitForClient(clientId)
+            return this.sendToTab<TResponse>(target, message)
+        }
+    }
+
+    private sendToTab<TResponse>(
+        target: ClientLocation,
+        message: CommandMessage,
+    ): Promise<CommandResponse<TResponse>> {
         return new Promise((resolve, reject) => {
             const callback = (response: CommandResponse<TResponse>) => {
                 const runtimeError = chrome.runtime.lastError
@@ -106,6 +126,22 @@ export class CommandServer {
             if (target.frameId === undefined) chrome.tabs.sendMessage(target.tabId, message, callback)
             else chrome.tabs.sendMessage(target.tabId, message, {frameId: target.frameId}, callback)
         })
+    }
+
+    private onTabRemoved = (tabId: number): void => {
+        for (const [clientId, location] of this.clients) {
+            if (location.tabId === tabId) this.clients.delete(clientId)
+        }
+    }
+
+    private async waitForClient(clientId: string): Promise<ClientLocation> {
+        const deadline = Date.now() + CLIENT_STARTUP_TIMEOUT
+        while (Date.now() < deadline) {
+            const client = this.clients.get(clientId)
+            if (client) return client
+            await new Promise(resolve => setTimeout(resolve, CLIENT_POLL_INTERVAL))
+        }
+        throw new Error(`Command client "${clientId}" did not register within ${CLIENT_STARTUP_TIMEOUT}ms`)
     }
 
     private response(id: string, ok: boolean, data?: unknown, error?: string): CommandResponse {

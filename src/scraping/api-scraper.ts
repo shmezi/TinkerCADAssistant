@@ -4,7 +4,6 @@
 // Return data when complete
 
 import {waitForSelectorInFrame} from "../utils/advanced-html-events";
-import {info} from "../utils/Logger";
 
 const createQueryFrame = (url: string) => {
     const iframe = Object.assign(document.createElement("iframe"), {
@@ -19,7 +18,7 @@ const createQueryFrame = (url: string) => {
  * Query a url inside of a containerized iframe.
  * @param url
  */
-export const queryInContainer = async (url: string): Promise<unknown> => {
+export const queryInContainer = async (url: string): Promise<any> => {
     return new Promise(async (resolve, reject) => {
 
         let queryFrame = createQueryFrame(url)

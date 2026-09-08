@@ -6,15 +6,15 @@ export class TimeoutError extends Error {
 }
 
 interface PollOptions {
-    intervalMs?: number; // How often to check (default: 100ms)
-    timeoutMs?: number;  // When to give up (default: 5000ms)
+    intervalMs?: number;
+    timeoutMs?: number;
 }
 
 export function pollUntil<T>(
     fn: () => T | null | undefined | false,
     options: PollOptions = {}
 ): Promise<T> {
-    const { intervalMs = 100, timeoutMs = 5000 } = options;
+    const {intervalMs = 100, timeoutMs = 10000} = options;
 
     return new Promise((resolve, reject) => {
         const startTime = Date.now();

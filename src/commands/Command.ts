@@ -10,7 +10,8 @@ export interface CommandContext {
  * A subclass only needs a stable name and its execution logic.
  */
 export abstract class Command<TArgs = void, TResponse = void> {
-    protected constructor(public readonly name: string) {}
+    protected constructor(public readonly name: string) {
+    }
 
     abstract execute(
         args: TArgs,

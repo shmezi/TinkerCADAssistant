@@ -1,5 +1,6 @@
 import {CommandServer} from "../commands/messaging/CommandServer";
 import {info} from "../utils/Logger";
+import {OpenTinkerAPICommand} from "../commands/impl/worker/OpenTinkerAPICommand";
 
 /** Register service-worker commands on this exported server. */
 export const commandServer = new CommandServer().listen()
@@ -17,3 +18,4 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         }
     }
 });
+commandServer.register(new OpenTinkerAPICommand())
