@@ -2,13 +2,14 @@ import {Patch} from "./Patch";
 import {doesSelectorExist} from "../utils/advanced-html-events";
 import {PatchLocation} from "./PatchLocation";
 import {DownloadAllPatch} from "./defined/DownloadAllPatch";
+import {TeacherModePatch} from "./defined/TeacherModePatch";
 
 export const stripTinkerPrefix = (url: string) => url.substring(26)
 
 export class PatchHandler {
     registeredPatches: Array<Patch> = []
 
-    patchesToApplyToPage = new Map<string, Patch>()
+    patchesToApplyToPage = new Map<string, Patch>() //Await Selector | Patch
 
 
     registerPatch = (patch: Patch) => {
@@ -58,16 +59,18 @@ export class PatchHandler {
     }
 
 
+
     onUrlChange = (url: string) => {
         this.clearPatchedElementsFromPage()
         this.patchesToApplyToPage.clear()
         for (let patch of this.registeredPatches) {
             if (patch.url.test(url))
-                this.patchesToApplyToPage.set(patch.awaitSelector, patch)
+                this.patchesToApplyToPage.set(patch.uniqueAwaitSelector(), patch)
         }
     }
 
     constructor() {
+        this.registerPatch(new TeacherModePatch())
         this.registerPatch(new DownloadAllPatch())
         this.onUrlChange(stripTinkerPrefix(window.location.href));
 

@@ -17,5 +17,7 @@ export abstract class Patch {
     abstract changeSelector: string
     abstract location: PatchLocation
 
+    uniqueAwaitSelector = () => `${this.awaitSelector}:not(#patch-${this.id})`
+
     abstract patch(): Element
 }

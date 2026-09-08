@@ -20,7 +20,6 @@ export class DownloadAllPatch extends Patch {
             const activityInfo = extractFromUrl(window.location.href)
             const projects = await queryProjects(activityInfo)
             if (!projects) return
-            // const value = await query(`class/${activityInfo.clazz}/project/${activityInfo.activity}/designs`)
             const jobs = projects.map((project): DownloadJob => {
                 return new DownloadJob(project.id, "tinkercad", `${project.description}`, "stl")
             })
