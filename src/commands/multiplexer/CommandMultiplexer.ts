@@ -1,46 +1,32 @@
-import {CommandResponse} from "./data/CommandResponse";
-import {CommandRequest} from "./data/CommandRequest";
+import {CommandResponse} from "../data/CommandResponse";
+import {CommandRequest} from "../data/CommandRequest";
+import {RecievableHost} from "./hosts/RecievableHost";
+import {ContentScriptHost} from "./hosts/ContentScriptHost";
+import {WorkerHost} from "./hosts/WorkerHost";
 
-export const WORKER_CLIENT_ID = "@SERVICEWORKER@"
 
 export class CommandMultiplexer {
-    private clients = new Map<string, number>()
-
-
-    sendToTab = (tab: number, command: CommandRequest | CommandResponse) => {
-        try {
-            chrome.tabs.sendMessage(tab, command)
-        } catch (_) {
-
-        }
-    }
+    //ClientId -> Receivable Host
+    private clients = new Map<string, RecievableHost>()
 
 
     sendCommand = (command: CommandRequest) => {
-        if (command.destination == WORKER_CLIENT_ID) {
-
-            return
-        }
-
         const destinationClient = this.clients.get(command.destination)
         if (!destinationClient) throw new Error(`Client ${command.destination} is not registered!`)
-
-        this.sendToTab(destinationClient, command)
-
-
+        destinationClient.sendToClient(command)
     }
 
     sendResponse = (response: CommandResponse) => {
-        if (response.destination == WORKER_CLIENT_ID) {
-            return
-        }
         const destinationClient = this.clients.get(response.destination)
         if (!destinationClient) throw new Error(`Client ${response.destination} is not registered!`)
-
-        this.sendToTab(destinationClient, response)
+        destinationClient.sendToClient(response)
     }
-    register = (client: string, tab: number) => {
-        this.clients.set(client, tab)
+    registerContentClient = (client: string, tab: number) => {
+        this.clients.set(client, new ContentScriptHost(client, tab))
+    }
+
+    registerClient = (host: RecievableHost) => {
+        this.clients.set(host.hostId, host)
     }
     /**
      * OnIncoming messages / commands from other clients
@@ -58,12 +44,20 @@ export class CommandMultiplexer {
 
         switch (command.command) {
             case "registerClient":
-                this.register(command.origin, tab)
+                this.registerContentClient(command.origin, tab)
                 break
             default:
                 this.sendCommand(command)
                 break
         }
+    }
+
+    constructor() {
+        chrome.runtime.onMessage.addListener((command: CommandRequest | CommandResponse, sender, sendResponse) => {
+            this.onIncoming(command, sender.tab?.id)
+        });
+        this.registerClient(new WorkerHost())
+
     }
 
 }
