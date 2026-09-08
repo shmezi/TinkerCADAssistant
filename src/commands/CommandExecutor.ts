@@ -1,24 +1,28 @@
-import {Command} from "./Command";
-import {CommandRequest} from "./data/CommandRequest";
-import {CommandResponse} from "./data/CommandResponse";
+import {Command, CommandContext} from "./Command";
+import {CommandData} from "./CommandData";
 
 export class CommandExecutor {
-    private commands = new Map<string, Command>()
+    private readonly commands = new Map<string, Command<unknown, unknown>>()
 
-    register = (command: Command) => {
-        this.commands.set(command.name, command)
+    register<TArgs, TResponse>(command: Command<TArgs, TResponse>): this {
+        if (this.commands.has(command.name)) {
+            throw new Error(`Command "${command.name}" is already registered`)
+        }
+        this.commands.set(command.name, command as Command<unknown, unknown>)
+        return this
     }
 
-    execute = (data: CommandRequest): Promise<CommandResponse> => {
-        return new Promise(async (resolve, reject) => {
-            const command = this.commands.get(data.command)
-            if (!command) {
-                reject(new Error(`Could not find command with id of: ${data.command}`))
-                return
-            }
-            resolve(command.execute(data))
+    unregister(name: string): boolean {
+        return this.commands.delete(name)
+    }
 
-        })
+    has(name: string): boolean {
+        return this.commands.has(name)
+    }
 
+    async execute<TResponse>(data: CommandData<unknown, unknown>, context: CommandContext): Promise<TResponse> {
+        const command = this.commands.get(data.name)
+        if (!command) throw new Error(`Unknown command: "${data.name}"`)
+        return await command.execute(data.args, context) as TResponse
     }
 }
